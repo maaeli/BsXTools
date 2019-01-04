@@ -13,6 +13,6 @@ if __name__ == '__main__':
         print("No Redis server is running, exiting")
         sys.exit(1)
 
-    from mxcube3 import server, socketio
+    from bsxcube import server, socketio
 
-    #socketio.run(server, host='0.0.0.0', port=8081)
+    socketio.run(server, host='0.0.0.0', port=8081)

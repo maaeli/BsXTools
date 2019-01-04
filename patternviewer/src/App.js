@@ -2,11 +2,16 @@ import React, { Component } from 'react';
 
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import caman from './caman.svg'
+import caman from './logo.svg'
 import {fabric} from 'fabric';
 import {Button} from 'react-bootstrap';
 
 import './App.css';
+
+import openSocket from 'socket.io-client';
+const socket = openSocket("http://0.0.0.0:8081");
+
+
 
 var colormap = require('colormap')
 const colormapoptions = {
@@ -47,6 +52,17 @@ class App extends Component {
      this.addPolygonStart = this.addPolygonStart.bind(this);
      this.canvasClick = this.canvasClick.bind(this);
      this.canvasDblClick = this.canvasDblClick.bind(this);
+     this.requestData = this.requestData.bind(this);
+  }
+
+  requestData() {
+    console.log("in requestData")
+    socket.on('data2d', (data2d) => {
+      console.log(data2d.data)
+      const newImg = this.transformData(data2d.data, data2d.width, data2d.height);
+      this.createImg(newImg);
+    })
+    socket.emit('data2d');
   }
 
   zoomSelect() {
@@ -66,7 +82,6 @@ class App extends Component {
 
 
   LoadData(img) {
-    console.log(img);
     const width = img.clientWidth;
     const height = img.clientHeight;
     const canvasin = this.refs.inputcanvas
@@ -169,7 +184,7 @@ class App extends Component {
       data[4*i + 2] = rgb[2];
       data[4*i + 3] = 254;
     }
-    console.log(data);
+    //console.log(data);
 
     var idata = ctx.createImageData(width, height);
     idata.data.set(data);
@@ -204,10 +219,10 @@ createImg(img)  {
 
 componentDidMount() {
 
-
+  this.requestData();
   const img = this.refs.inputimage
-  //img.onload = this.LoadData(img);
-  this.LoadData(img);
+
+  //this.LoadData(img);
 }
 
   addPolygonStart() {
@@ -244,8 +259,8 @@ componentDidMount() {
             </tr>
           </tbody>
         </table>
-        <canvas ref="inputcanvas" width={640} height={425}/>
-        <img ref="inputimage" src={caman}  alt=""  />
+        <canvas ref="inputcanvas" width={640} height={425} className="hidden"/>
+
       </div>
     );
   }
