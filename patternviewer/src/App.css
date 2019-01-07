@@ -32,14 +32,25 @@
 }
 
 .canvascontainer {
-  padding-bottom: 20px;
-  padding-right: 20px;
-  border: 1px solid red;
+  /*padding-bottom: 20px;
+  //padding-right: 20px;
+  //padding-top: 20px;
+  padding-left: 20px; */
+  border: solid 1px red;
   overflow: scroll;
-  height: 300px;
-  width: 300px;
+  /*height: 400px;
+  width: 600px;*/
 }
 
+.mainCanvas {
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    /*height: 330px;
+    width: 560px;*/
+}
 
 ::-webkit-scrollbar {
   -webkit-appearance: none;
@@ -53,5 +64,5 @@
 }
 
 .navbar{
-    width: 300px;    
+    width: 300px;
 }

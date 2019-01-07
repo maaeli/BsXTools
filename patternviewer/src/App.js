@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import caman from './logo.svg'
 import {fabric} from 'fabric';
 import {Button} from 'react-bootstrap';
 
@@ -12,7 +11,8 @@ import openSocket from 'socket.io-client';
 const socket = openSocket("http://0.0.0.0:8081");
 
 
-
+/*This section is to be extended to allow a section of colormaps
+Also, negative values need to be handled depending on the chosen map*/
 var colormap = require('colormap')
 const colormapoptions = {
        colormap: "jet",   // pick a builtin colormap or add your own
@@ -21,13 +21,14 @@ const colormapoptions = {
        alpha: 1  ,        // set an alpha value or a linear alpha mapping [start, end]
 }
 const cg = colormap(colormapoptions);
+const color = (bw,cg) => (bw < 0)
+    ? [0,0,0]
+    : cg[Math.floor((colormapoptions.nshades-1)*bw/255)]
 
 
-const color = (bw,cg) => cg[Math.floor((colormapoptions.nshades-1)*bw/255)]
-
-
-const padding = 0;
-const canvasSize = 300;
+const padding = 40;
+const canvasHeight = 330;
+const canvasWidth = 560;
 
 
 class App extends Component {
@@ -35,13 +36,13 @@ class App extends Component {
   constructor(props){
      super(props)
 
-     this.refs = {
-       //Fcanvas: None
-     };
-
-     this.state = {drawing: "None",
+     this.state = {imageScale: 1,
+                   imageOffsetX: 0,
+                   imageOffsetY: 0,
+                   drawing: "None",
                    objectUnderCreation: [],
                    MaskObjects: [],
+                   zoom: 1,
                   };
 
      this.createImg = this.createImg.bind(this);
@@ -58,7 +59,7 @@ class App extends Component {
   requestData() {
     console.log("in requestData")
     socket.on('data2d', (data2d) => {
-      console.log(data2d.data)
+      console.log(data2d.width)
       const newImg = this.transformData(data2d.data, data2d.width, data2d.height);
       this.createImg(newImg);
     })
@@ -67,17 +68,64 @@ class App extends Component {
 
   zoomSelect() {
     const sel = this.refs.setzoom;
-
-    const canvas = this.refs.Fcanvas;
+    const canvas = this.canvas;
     const newZoom = sel.value/(100);
+    const currentZoom = canvas.getZoom(newZoom);
+    // We need to know the current postions of the scroll bars for proper centering
+    const scroller = this.refs.canvascontainer;
+    var newScrollLeft = 0;
+    var newScrollTop = 0;
+    console.log([scroller.scrollLeft, scroller.scrollTop]);
+
+    console.log(scroller.scrollWidth);
+    console.log(scroller.clientWidth);
+
+    //relative psotion of the beginning of the thumb, adjusted by half the thumbsize
+    const oldScrollLeft = (scroller.scrollLeft + 0.5*scroller.clientWidth^2/scroller.scrollWidth)/scroller.scrollWidth ;
+    const oldScrollTop = (scroller.scrollTop + 0.5*scroller.clientHeight^2/scroller.scrollHeight)/scroller.scrollHeight;
+
+    //Check if we already have a scrollbar
+    const noHscroll = (scroller.clientWidth > canvas.width);
+    const noVscroll = (scroller.clientHeight > canvas.height);
+
     try {
       canvas.setZoom(newZoom);
     }
     catch(err) {
         console.log(err);
     }
-    canvas.setHeight(canvasSize*newZoom);
-    canvas.setWidth(canvasSize*newZoom);
+    canvas.setHeight(canvas.height*newZoom/currentZoom);
+    canvas.setWidth(canvas.width*newZoom/currentZoom);
+
+    canvas.calcOffset();
+
+
+
+    const scrollThumbLeft = scroller.clientWidth^2/scroller.scrollWidth;
+    const scrollThumbTop = scroller.clientHeight^2/scroller.scrollHeight;
+
+    if (canvas.width > scroller.clientWidth) {
+      if (noHscroll) {
+        //there is no scroll-bar yet, go to center by default
+        console.log("add scrollbar");
+        newScrollLeft = (scroller.scrollWidth - scrollThumbLeft)/2;
+      }
+      else {
+        newScrollLeft = oldScrollLeft*scroller.scrollWidth - scrollThumbLeft/2
+      }
+      scroller.scrollLeft = newScrollLeft;
+    }
+    if (canvas.height > scroller.clientHeight) {
+      if (noVscroll) {
+        //there is no scroll-bar yet, go to center by default
+        console.log("add scrollbar");
+        newScrollTop = (scroller.scrollHeight - scrollThumbTop)/2;
+      }
+      else {
+        newScrollTop = oldScrollTop*scroller.scrollHeight - scrollThumbTop/2;
+      }
+      scroller.scrollTop = newScrollTop;
+    }
   }
 
 
@@ -94,7 +142,6 @@ class App extends Component {
     for (let i = 0; i < imgData.data.length; i += 4) {
       bwdata[i/4] =   (imgData.data[i]+imgData.data[i+1]+imgData.data[i+2])/3;
     }
-    //console.log(bwdata);
     if (imgWidth*imgHeight > 0) {
         const newImg = this.transformData(bwdata, imgWidth, imgHeight);
         this.createImg(newImg);
@@ -102,10 +149,17 @@ class App extends Component {
   }
 
   canvasClick(options) {
-    const canvas = this.refs.Fcanvas;
+    console.log(options);
+
     console.log(options.pointer);
     console.log(options.absolutePointer);
-    console.log(options);
+    try {
+      var canvas = options.target.canvas;
+    }
+    catch(err) {
+        console.log(err);
+        return;
+    }
 
     switch(this.state.drawing) {
        case "polygon":
@@ -132,8 +186,15 @@ class App extends Component {
   }
 
   canvasDblClick(options) {
-    const canvas = this.refs.Fcanvas;
-
+    //const canvas = this.refs.Fcanvas;
+    //console.log(options);
+    try {
+      var canvas = options.target.canvas;
+    }
+    catch(err) {
+      console.log(err);
+      return;
+    }
 
     switch(this.state.drawing) {
        case "polygon":
@@ -171,21 +232,18 @@ class App extends Component {
   }
 
   transformData(bwdata, width, height){
-
     var canvasin=this.refs.inputcanvas;
+    canvasin.width = width;
+    canvasin.height = height;
     const ctx = canvasin.getContext("2d")
     var data = [];
     for (let i = 0; i < bwdata.length; i += 1) {
       let rgb = color(bwdata[i],cg);
-      //let rgb = [bwdata[i],0,0];
-
       data[4*i] = rgb[0];
       data[4*i + 1] = rgb[1];
       data[4*i + 2] = rgb[2];
       data[4*i + 3] = 254;
     }
-    //console.log(data);
-
     var idata = ctx.createImageData(width, height);
     idata.data.set(data);
     ctx.putImageData(idata, 0, 0);
@@ -195,32 +253,43 @@ class App extends Component {
   }
 
 createImg(img)  {
+  const canvas = this.canvas;
 
+  canvas.calcOffset()
+
+  const cImg = new fabric.Image(img, {
+     angle: 0,
+     selectable: false,
+  });
+  const scalingFactorW = canvas.width/img.width
+  const scalingFactorH = canvas.height/img.height
+  const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
+  console.log(canvas.width);
+  console.log(img.width);
+
+
+  cImg.set({
+    scaleX: scalingFactor,
+    scaleY: scalingFactor,
+    left: (canvas.width - img.width*scalingFactor)/2,
+    top: (canvas.height - img.height*scalingFactor)/2,
+  });
+  canvas.add(cImg);
+  canvas.on('mouse:down', this.canvasClick);
+  canvas.on('mouse:dblclick', this.canvasDblClick);
+
+}
+
+
+componentDidMount() {
   const canvas = new fabric.Canvas(this.refs.canvas, {
     width: this.refs.canvas.clientWidth,
     height: this.refs.canvas.clientHeight
   });
-  this.refs.Fcanvas = canvas;
-  canvas.calcOffset()
-
-  const cImg = new fabric.Image(img, {
-     left: padding,
-     top: padding,
-     angle: 0,
-     selectable: false,
-  });
-
-   canvas.add(cImg);
-
-   canvas.on('mouse:down', this.canvasClick);
-   canvas.on('mouse:dblclick', this.canvasDblClick);
-
-}
-
-componentDidMount() {
+  this.canvas = canvas;
 
   this.requestData();
-  const img = this.refs.inputimage
+  //const img = this.refs.inputimage
 
   //this.LoadData(img);
 }
@@ -247,10 +316,13 @@ componentDidMount() {
           <tbody>
             <tr>
               <td>
-                <div ref="canvascontainer"  className="canvascontainer" >
-
-                  <canvas ref="canvas" className="mainCanvas" width={canvasSize} height={canvasSize}  />
-
+                <div ref="canvascontainer"  className="canvascontainer"
+                     style={{padding: padding,
+                             width: canvasWidth + 2.5*padding,
+                             height: canvasHeight + 2.5*padding}}>
+                    <canvas ref="canvas" className="mainCanvas"
+                            style={{width: canvasWidth,
+                                    height: canvasHeight}}/>
                 </div>
               </td>
               <td>
@@ -259,11 +331,14 @@ componentDidMount() {
             </tr>
           </tbody>
         </table>
-        <canvas ref="inputcanvas" width={640} height={425} className="hidden"/>
-
+        <canvas ref="inputcanvas" width={canvasWidth} height={canvasHeight} className="hidden"/>
+      {/*  <Canvas onClick={this.canvasClick}/> */}
       </div>
     );
   }
 }
+
+
+
 
 export default App;

@@ -30,6 +30,8 @@ def give_image():
     """
     print("client requested data")
     width, height = data2D.shape
+    print(data2D.shape)
+    print(width, height)
     data1D = data2D.reshape((width*height,))
     dl = [int(i) for i in data1D]
     emit('data2d', {'data': dl, 'width': width, 'height': height})
