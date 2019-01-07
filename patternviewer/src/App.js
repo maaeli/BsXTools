@@ -42,7 +42,7 @@ class App extends Component {
                    drawing: "None",
                    objectUnderCreation: [],
                    MaskObjects: [],
-                   zoom: 1,
+                   zoom: 100,
                   };
 
      this.createImg = this.createImg.bind(this);
@@ -66,21 +66,21 @@ class App extends Component {
     socket.emit('data2d');
   }
 
-  zoomSelect() {
-    const sel = this.refs.setzoom;
+  zoomSelect(event, zoom) {
+    //in the functions call from the zoom selector, zoom is e.target.value and
+    //as o7 07/01/2019 a string!
+    const sel = parseInt(zoom);
+    this.setState({zoom: sel});
     const canvas = this.canvas;
-    const newZoom = sel.value/(100);
+    const newZoom = sel/(100);
+    console.log(newZoom);
     const currentZoom = canvas.getZoom(newZoom);
     // We need to know the current postions of the scroll bars for proper centering
     const scroller = this.refs.canvascontainer;
     var newScrollLeft = 0;
     var newScrollTop = 0;
-    console.log([scroller.scrollLeft, scroller.scrollTop]);
 
-    console.log(scroller.scrollWidth);
-    console.log(scroller.clientWidth);
-
-    //relative psotion of the beginning of the thumb, adjusted by half the thumbsize
+    //relative position of the beginning of the thumb, adjusted by half the thumbsize
     const oldScrollLeft = (scroller.scrollLeft + 0.5*scroller.clientWidth^2/scroller.scrollWidth)/scroller.scrollWidth ;
     const oldScrollTop = (scroller.scrollTop + 0.5*scroller.clientHeight^2/scroller.scrollHeight)/scroller.scrollHeight;
 
@@ -107,7 +107,7 @@ class App extends Component {
     if (canvas.width > scroller.clientWidth) {
       if (noHscroll) {
         //there is no scroll-bar yet, go to center by default
-        console.log("add scrollbar");
+
         newScrollLeft = (scroller.scrollWidth - scrollThumbLeft)/2;
       }
       else {
@@ -118,7 +118,6 @@ class App extends Component {
     if (canvas.height > scroller.clientHeight) {
       if (noVscroll) {
         //there is no scroll-bar yet, go to center by default
-        console.log("add scrollbar");
         newScrollTop = (scroller.scrollHeight - scrollThumbTop)/2;
       }
       else {
@@ -126,27 +125,29 @@ class App extends Component {
       }
       scroller.scrollTop = newScrollTop;
     }
+    event.preventDefault();
   }
 
-
-  LoadData(img) {
-    const width = img.clientWidth;
-    const height = img.clientHeight;
-    const canvasin = this.refs.inputcanvas
-    const ctx = canvasin.getContext("2d")
-    ctx.drawImage(img,0,0, width,height, 0,0, width,height);
-    const imgData = ctx.getImageData(0, 0, canvasin.width, canvasin.height);
-    const imgWidth = imgData.width;
-    const imgHeight = imgData.height;
-    var bwdata = []
-    for (let i = 0; i < imgData.data.length; i += 4) {
-      bwdata[i/4] =   (imgData.data[i]+imgData.data[i+1]+imgData.data[i+2])/3;
-    }
-    if (imgWidth*imgHeight > 0) {
-        const newImg = this.transformData(bwdata, imgWidth, imgHeight);
-        this.createImg(newImg);
-    }
-  }
+  //
+  // LoadData(img) {
+  // Alternative data loader using image
+  //   const width = img.clientWidth;
+  //   const height = img.clientHeight;
+  //   const canvasin = this.refs.inputcanvas
+  //   const ctx = canvasin.getContext("2d")
+  //   ctx.drawImage(img,0,0, width,height, 0,0, width,height);
+  //   const imgData = ctx.getImageData(0, 0, canvasin.width, canvasin.height);
+  //   const imgWidth = imgData.width;
+  //   const imgHeight = imgData.height;
+  //   var bwdata = []
+  //   for (let i = 0; i < imgData.data.length; i += 4) {
+  //     bwdata[i/4] =   (imgData.data[i]+imgData.data[i+1]+imgData.data[i+2])/3;
+  //   }
+  //   if (imgWidth*imgHeight > 0) {
+  //       const newImg = this.transformData(bwdata, imgWidth, imgHeight);
+  //       this.createImg(newImg);
+  //   }
+  // }
 
   canvasClick(options) {
     console.log(options);
@@ -168,8 +169,8 @@ class App extends Component {
              const lastPoint = this.state.objectUnderCreation[this.state.objectUnderCreation.length-1]
              const segment = new fabric.Line([lastPoint.x, lastPoint.y, newPoint.x, newPoint.y],
                                      {fill: 'red',
-                                     stroke: 'red',
-                                     strokeWidth: 5,
+                                     stroke: 'white',
+                                     strokeWidth: 1/canvas.getZoom(),
                                      selectable: false,
                                      evented: false,});
               canvas.add(segment);
@@ -186,8 +187,6 @@ class App extends Component {
   }
 
   canvasDblClick(options) {
-    //const canvas = this.refs.Fcanvas;
-    //console.log(options);
     try {
       var canvas = options.target.canvas;
     }
@@ -289,8 +288,8 @@ componentDidMount() {
   this.canvas = canvas;
 
   this.requestData();
-  //const img = this.refs.inputimage
 
+  //const img = this.refs.inputimage
   //this.LoadData(img);
 }
 
@@ -299,13 +298,16 @@ componentDidMount() {
   }
 
   render() {
-
     return (
       <div className="App">
         <div className="navbar">
              <ul className="navbar-nav mr-auto">
               <label form="sel1">Select Zoom:</label>
-              <select  ref="setzoom" onChange={this.zoomSelect}>
+              <select  ref="setzoom"
+                       value = {this.state.zoom}
+                       onChange={(e) => {
+                         this.zoomSelect(e,e.target.value);
+                       }}>
                 <option>100</option>
                 <option>300</option>
                 <option>600</option>
@@ -332,7 +334,6 @@ componentDidMount() {
           </tbody>
         </table>
         <canvas ref="inputcanvas" width={canvasWidth} height={canvasHeight} className="hidden"/>
-      {/*  <Canvas onClick={this.canvasClick}/> */}
       </div>
     );
   }
