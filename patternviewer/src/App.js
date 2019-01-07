@@ -54,6 +54,33 @@ class App extends Component {
      this.canvasClick = this.canvasClick.bind(this);
      this.canvasDblClick = this.canvasDblClick.bind(this);
      this.requestData = this.requestData.bind(this);
+     this.editPolygon = this.editPolygon.bind(this);
+     this.activateCanvasObject = this.activateCanvasObject.bind(this);
+     this.moveCanvasObject = this.moveCanvasObject.bind(this);
+     this.polygonPointMoved = this.polygonPointMoved.bind(this);
+  }
+
+  activateCanvasObject(target) {
+    try {
+      //console.log(target.e.shiftKey);
+      if (target.e.shiftKey) {
+        target.selected[0].shiftSelectedDo();
+      }
+    }
+    catch(err) {
+      //It is quite probale that shiftSelect is not defined ;)
+      console.log(err);
+    }
+  }
+
+  moveCanvasObject(target) {
+    try {
+      //console.log(target.target)//.selected[0])
+      target.target.moveDo();
+    }
+    catch(err) {
+      console.log(err);
+    }
   }
 
   requestData() {
@@ -128,32 +155,32 @@ class App extends Component {
     event.preventDefault();
   }
 
-  //
-  // LoadData(img) {
-  // Alternative data loader using image
-  //   const width = img.clientWidth;
-  //   const height = img.clientHeight;
-  //   const canvasin = this.refs.inputcanvas
-  //   const ctx = canvasin.getContext("2d")
-  //   ctx.drawImage(img,0,0, width,height, 0,0, width,height);
-  //   const imgData = ctx.getImageData(0, 0, canvasin.width, canvasin.height);
-  //   const imgWidth = imgData.width;
-  //   const imgHeight = imgData.height;
-  //   var bwdata = []
-  //   for (let i = 0; i < imgData.data.length; i += 4) {
-  //     bwdata[i/4] =   (imgData.data[i]+imgData.data[i+1]+imgData.data[i+2])/3;
-  //   }
-  //   if (imgWidth*imgHeight > 0) {
-  //       const newImg = this.transformData(bwdata, imgWidth, imgHeight);
-  //       this.createImg(newImg);
-  //   }
-  // }
+
+  LoadData(img) {
+
+    const width = img.clientWidth;
+    const height = img.clientHeight;
+    const canvasin = this.refs.inputcanvas
+    const ctx = canvasin.getContext("2d")
+    ctx.drawImage(img,0,0, width,height, 0,0, width,height);
+    const imgData = ctx.getImageData(0, 0, canvasin.width, canvasin.height);
+    const imgWidth = imgData.width;
+    const imgHeight = imgData.height;
+    var bwdata = []
+    for (let i = 0; i < imgData.data.length; i += 4) {
+      bwdata[i/4] =   (imgData.data[i]+imgData.data[i+1]+imgData.data[i+2])/3;
+    }
+    if (imgWidth*imgHeight > 0) {
+        const newImg = this.transformData(bwdata, imgWidth, imgHeight);
+        this.createImg(newImg);
+    }
+  }
 
   canvasClick(options) {
-    console.log(options);
+    console.log(options.e);
 
-    console.log(options.pointer);
-    console.log(options.absolutePointer);
+    //console.log(options.pointer);
+    //console.log(options.absolutePointer);
     try {
       var canvas = options.target.canvas;
     }
@@ -198,7 +225,10 @@ class App extends Component {
     switch(this.state.drawing) {
        case "polygon":
          const newObject = this.state.objectUnderCreation;
-         if (newObject.length > 2) {
+         if (newObject.length > 3) {
+           //the last point actually comes from this double-click, let's get rid of interval
+           newObject.pop();
+
            const polygon = new fabric.Polygon(newObject, {
                 //left: 0,
                 //top: 0,
@@ -206,6 +236,7 @@ class App extends Component {
                 selectable: true,
                 objectCaching: false,
               });
+
           //let's clean up the canvas ATTENTION: this assumes no other lines!
            canvas.forEachObject(function(obj){
              if(obj.type === 'line'){
@@ -213,12 +244,14 @@ class App extends Component {
                   }
               });
            canvas.add(polygon);
-
+           canvas.renderAll();
+           const polygonID = this.state.MaskObjects.length;
            this.setState(prevState => ({
                 drawing: "None",
                 objectUnderCreation: [],
                 MaskObjects: [...prevState.MaskObjects, polygon],
             }));
+            polygon.shiftSelectedDo = () => this.editPolygon(polygonID);
          }
          else {
            //Here, we should throw a notice
@@ -274,8 +307,7 @@ createImg(img)  {
     top: (canvas.height - img.height*scalingFactor)/2,
   });
   canvas.add(cImg);
-  canvas.on('mouse:down', this.canvasClick);
-  canvas.on('mouse:dblclick', this.canvasDblClick);
+
 
 }
 
@@ -286,7 +318,11 @@ componentDidMount() {
     height: this.refs.canvas.clientHeight
   });
   this.canvas = canvas;
-
+  canvas.on("selection:created", this.activateCanvasObject);
+  canvas.on("selection:updated", this.activateCanvasObject);
+  canvas.on('object:moving',this.moveCanvasObject);
+  canvas.on('mouse:down', this.canvasClick);
+  canvas.on('mouse:dblclick', this.canvasDblClick);
   this.requestData();
 
   //const img = this.refs.inputimage
@@ -295,6 +331,55 @@ componentDidMount() {
 
   addPolygonStart() {
       this.setState({drawing: "polygon"});
+  }
+
+  editPolygon(id) {
+    //how do we leave editing mode???
+    console.log("Edit poly");
+    const polygon = this.state.MaskObjects[id];
+    polygon.lockMovementX = true;
+    polygon.lockMovementY = true;
+    const points = polygon.points;
+      for (let pointnr in points) {
+        let point = points[pointnr];
+        console.log(point);
+        let circle = new fabric.Circle({
+          radius: 5,///this.canvas.getZoom(),
+          fill: 'white',
+          left: point.x,
+          top: point.y,
+          originX: 'center',
+          originY: 'center',
+          hasBorders: false,
+          hasControls: false,
+          //name: index
+        });
+      //to implement: when a circle is dragged, the polygon and all other cirlces are deselcted, the other cirlces disappear
+      //to implement: when a circle is no longer dragged, we return to the prvious state
+      circle.moveDo = () => this.polygonPointMoved(id,pointnr,circle);
+      this.canvas.add(circle);
+    }
+    this.canvas.renderAll();
+    console.log(polygon);
+    return true;
+  }
+
+  polygonPointMoved(id, pointnr, circle) {
+      console.log(pointnr);
+      const objects = this.state.MaskObjects;
+      const polygon = objects[id];
+      const points = polygon.points;
+      console.log(points);
+      points[pointnr] = circle.getCenterPoint();
+      console.log(points);
+      const updatedPolgyon = new fabric.Polygon(points, {
+           //left: 0,
+           //top: 0,
+           fill: 'purple',
+           selectable: true,
+           objectCaching: false,
+        });
+      this.setState({MaskObjects: objects});
   }
 
   render() {
@@ -333,7 +418,8 @@ componentDidMount() {
             </tr>
           </tbody>
         </table>
-        <canvas ref="inputcanvas" width={canvasWidth} height={canvasHeight} className="hidden"/>
+        <canvas ref="inputcanvas" width={canvasWidth} height={canvasHeight}
+                className="hidden"/>
       </div>
     );
   }
