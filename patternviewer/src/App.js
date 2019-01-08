@@ -47,14 +47,17 @@ class App extends Component {
                    minimumInt: 0,
                    logInt: false,
                    rawData: {},
+                   posX: 0,
+                   posY: 0,
+                   intensity: 0,
                   };
 
      this.createImg = this.createImg.bind(this);
-     //this.onLoadData = this.onLoadData.bind(this);
      this.LoadData = this.LoadData.bind(this);
      this.transformData = this.transformData.bind(this);
      this.zoomSelect = this.zoomSelect.bind(this);
      this.addPolygonStart = this.addPolygonStart.bind(this);
+     this.canvasMouseMove = this.canvasMouseMove.bind(this);
      this.canvasClick = this.canvasClick.bind(this);
      this.canvasDblClick = this.canvasDblClick.bind(this);
      this.requestData = this.requestData.bind(this);
@@ -144,18 +147,34 @@ class App extends Component {
     const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
     //console.log(canvas.width);
     //console.log(img.width);
-
-
+    const offsetX = (canvas.width - img.width*scalingFactor)/2;
+    const offsetY = (canvas.height - img.height*scalingFactor)/2;
     cImg.set({
       scaleX: scalingFactor,
       scaleY: scalingFactor,
-      left: (canvas.width - img.width*scalingFactor)/2,
-      top: (canvas.height - img.height*scalingFactor)/2,
+      left: offsetX,
+      top: offsetY,
     });
     canvas.add(cImg);
+
+    this.setState(prevState => ({
+      imageScale: scalingFactor,
+      imageOffsetX: offsetX,
+      imageOffsetY: offsetY,
+     }));
+    //  //add a invisible rectangle to the canvas for over events
+    //  const rect = new fabric.Rect({
+    //    left: offsetX,
+    //    top: offsetY,
+    //    width: img.width*scalingFactor,
+    //    height: img.height*scalingFactor,
+    //    fill: 'rgba(0,0,0,0)',
+    //    stroke: 'rgba(0,0,0,0)',
+    //    strokeWidth: 0,
+    //    selectable: false,
+    // });
+    // canvas.add(rect);
     canvas.renderAll();
-
-
   }
 
   //Canvas actions
@@ -180,6 +199,16 @@ class App extends Component {
     catch(err) {
       console.log(err);
     }
+  }
+
+  canvasMouseMove(event) {
+
+      const posX = event.absolutePointer.x;
+      const posY = event.absolutePointer.y;
+      //console.log(this.state.offsetX, this.state.imageScale)
+      const realX = (posX - this.state.imageOffsetX)/this.state.imageScale;
+      const realY = (posY - this.state.imageOffsetY)/this.state.imageScale;
+      this.setState(prevState => ({posX: Math.floor(realX), posY: Math.floor(realY)}));
   }
 
   canvasClick(options) {
@@ -298,7 +327,7 @@ class App extends Component {
           hasControls: false,
           //name: index
         });
-        
+
       //to implement: when a circle is dragged, the polygon and all other cirlces are deselcted, the other cirlces disappear
       //to implement: when a circle is no longer dragged, we return to the prvious state
       circle.moveDo = () => this.polygonPointMoved(id,pointnr,circle);
@@ -423,6 +452,8 @@ componentDidMount() {
   canvas.on('object:moving',this.moveCanvasObject);
   canvas.on('mouse:down', this.canvasClick);
   canvas.on('mouse:dblclick', this.canvasDblClick);
+  canvas.on('mouse:move', this.canvasMouseMove);
+
   canvas.hoverCursor = 'default';
   this.requestData();
 
@@ -448,10 +479,6 @@ componentDidMount() {
               </select>
               </ul>
           </div>
-        <table>
-          <tbody>
-            <tr>
-              <td>
                 <div ref="canvascontainer"  className="canvascontainer"
                      style={{padding: padding,
                              width: canvasWidth + 2.5*padding,
@@ -460,13 +487,10 @@ componentDidMount() {
                             style={{width: canvasWidth,
                                     height: canvasHeight}}/>
                 </div>
-              </td>
-              <td>
-                <Button onClick={this.addPolygonStart}> Add Polygon</Button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <div className="intensityBox">x: {this.state.posX}, y: {this.state.posY}, intensity: {this.state.intensity}</div>
+                <div className="maskPanel">
+                  <Button onClick={this.addPolygonStart}> Add Polygon</Button>
+                </div>
         <canvas ref="inputcanvas" width={canvasWidth} height={canvasHeight}
                 className="hidden"/>
       </div>

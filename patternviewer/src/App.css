@@ -1,5 +1,10 @@
 .App {
   text-align: center;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto auto;
+  grid-column-gap: 0;
+grid-row-gap: 0;
 }
 
 .App-logo {
@@ -40,6 +45,12 @@
   overflow: scroll;
   /*height: 400px;
   width: 600px;*/
+  grid-column-start: 1;
+  grid-column-end: 1;
+  grid-row-start: 2;
+  grid-row-end: 2;
+  place-self: center;
+  background: grey;
 }
 
 .mainCanvas {
@@ -50,6 +61,24 @@
     display: block;
     /*height: 330px;
     width: 560px;*/
+}
+
+.intensityBox {
+    background: rgba(0, 0, 0, 0.3);
+    border: thin solid rgba(0, 0, 0, 0.6);
+    color:# #eeeeee;
+    font-family: Droid Sans, Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    -webkit-box-shadow: rgba(0,0,0,0.5) 5px 5px 20px;
+    -moz-box-shadow: rgba(0,0,0,0.5) 5px 5px 20px;
+    box-shadow: rgba(0,0,0,0.5) 5px 5px 20px;
+    grid-column-start: 1;
+    grid-column-end: 1;
+    grid-row-start: 3;
+    grid-row-end: 3;
+    text-align: left;
+    padding-left: 30px;
 }
 
 ::-webkit-scrollbar {
@@ -65,4 +94,15 @@
 
 .navbar{
     width: 300px;
+    grid-column-start: 1;
+    grid-column-end: 1;
+    grid-row-start: 1;
+    grid-row-end: 1;
+}
+
+.maskPanel{
+    grid-column-start: 2;
+    grid-column-end: 2;
+    grid-row-start: 2;
+    grid-row-end: 2;
 }
