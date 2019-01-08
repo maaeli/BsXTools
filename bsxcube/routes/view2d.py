@@ -15,15 +15,24 @@ from bsxcube import socketio
 from bsxcube import bsxcube
 from bsxcube import server
 
-from fabio import edfimage
+import fabio
 
 from PIL import Image
 import numpy as np
 
+testImage = "water"
 
-testimage = Image.open("caman.tif")
-data2D = np.array(testimage, dtype=int)
+if testImage == "water":
+    with fabio.open("water_001_00001.edf") as testimage:
+        data2D = testimage.data
+else:
+    testimage = Image.open("caman.tif")
+    data2D = np.array(testimage, dtype=int)
 
+print(data2D)
+ 
+#from scipy.misc import toimage
+#toimage(data2D).show()
 
 #@server.route("/bsxcube/api/v0.1/get_image", methods=['GET', 'POST'])
 @socketio.on('data2d')
@@ -31,7 +40,7 @@ def give_image():
     """Provides a 1d array containing the data + width & height
     """
     print("client requested data")
-    width, height = data2D.shape
+    height, width = data2D.shape
     print(data2D.shape)
     print(width, height)
     data1D = data2D.reshape((width*height,))

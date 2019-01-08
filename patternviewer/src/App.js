@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import {fabric} from 'fabric';
@@ -26,7 +25,7 @@ const color = (bw,cg) => (bw < 0)
     : cg[Math.floor((colormapoptions.nshades-1)*bw/255)]
 
 
-const padding = 40;
+const padding = 10;
 const canvasHeight = 330;
 const canvasWidth = 560;
 
@@ -43,6 +42,11 @@ class App extends Component {
                    objectUnderCreation: [],
                    MaskObjects: [],
                    zoom: 100,
+                   //limits for intensity display
+                   maximumInt: 1000,
+                   minimumInt: 0,
+                   logInt: false,
+                   rawData: {},
                   };
 
      this.createImg = this.createImg.bind(this);
@@ -65,10 +69,13 @@ class App extends Component {
   requestData() {
     console.log("in requestData")
     socket.on('data2d', (data2d) => {
-      console.log(data2d.width)
+      console.log(data2d.width, data2d.height);
       const newImg = this.transformData(data2d.data, data2d.width, data2d.height);
       this.createImg(newImg);
-    })
+      this.setState(prevState => ({
+         rawData: {data: data2d.data, width: data2d.width, height: data2d.height}
+       }));
+    });
     socket.emit('data2d');
   }
 
@@ -96,14 +103,24 @@ class App extends Component {
     var canvasin=this.refs.inputcanvas;
     canvasin.width = width;
     canvasin.height = height;
-    const ctx = canvasin.getContext("2d")
+    const ctx = canvasin.getContext("2d");
+    //let max = Math.max(bwdata);
     var data = [];
     for (let i = 0; i < bwdata.length; i += 1) {
-      let rgb = color(bwdata[i],cg);
-      data[4*i] = rgb[0];
-      data[4*i + 1] = rgb[1];
-      data[4*i + 2] = rgb[2];
-      data[4*i + 3] = 254;
+      let intensity = bwdata[i];
+      intensity = (0 < intensity && intensity <= this.state.minimumInt) ? 0 : intensity
+      intensity = (intensity >= this.state.maximumInt) ? this.state.maximumInt : intensity
+      intensity = 255*(intensity - this.state.minimumInt)/(this.state.maximumInt - this.state.minimumInt)
+      let rgb = color(intensity,cg);
+      try {
+        data[4*i] = rgb[0];
+        data[4*i + 1] = rgb[1];
+        data[4*i + 2] = rgb[2];
+        data[4*i + 3] = 254;
+      }
+      catch (err) {
+        console.log(bwdata[i], rgb);
+      }
     }
     var idata = ctx.createImageData(width, height);
     idata.data.set(data);
@@ -125,8 +142,8 @@ class App extends Component {
     const scalingFactorW = canvas.width/img.width
     const scalingFactorH = canvas.height/img.height
     const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
-    console.log(canvas.width);
-    console.log(img.width);
+    //console.log(canvas.width);
+    //console.log(img.width);
 
 
     cImg.set({
@@ -136,6 +153,7 @@ class App extends Component {
       top: (canvas.height - img.height*scalingFactor)/2,
     });
     canvas.add(cImg);
+    canvas.renderAll();
 
 
   }
@@ -145,9 +163,7 @@ class App extends Component {
   activateCanvasObject(target) {
     try {
       //console.log(target.e.shiftKey);
-      if (target.e.shiftKey) {
-        target.selected[0].shiftSelectedDo();
-      }
+        target.selected[0].selectedDo();
     }
     catch(err) {
       //It is quite probale that shiftSelectDo is not defined ;)
@@ -225,7 +241,11 @@ class App extends Component {
                 fill: 'purple',
                 selectable: true,
                 objectCaching: false,
+                lockMovementX: true,
+                lockMovementY: true,
               });
+
+
 
           //let's clean up the canvas ATTENTION: this assumes no other lines!
            canvas.forEachObject(function(obj){
@@ -241,7 +261,7 @@ class App extends Component {
                 objectUnderCreation: [],
                 MaskObjects: [...prevState.MaskObjects, polygon],
             }));
-            polygon.shiftSelectedDo = () => this.editPolygon(polygonID);
+            polygon.selectedDo = () => this.editPolygon(polygonID);
          }
          else {
            //Here, we should throw a notice
@@ -262,14 +282,13 @@ class App extends Component {
     //how do we leave editing mode???
     console.log("Edit poly");
     const polygon = this.state.MaskObjects[id];
-    polygon.lockMovementX = true;
-    polygon.lockMovementY = true;
+
     const points = polygon.points;
       for (let pointnr in points) {
         let point = points[pointnr];
         console.log(point);
         let circle = new fabric.Circle({
-          radius: 5,///this.canvas.getZoom(),
+          radius: 2/this.canvas.getZoom(),
           fill: 'white',
           left: point.x,
           top: point.y,
@@ -279,6 +298,7 @@ class App extends Component {
           hasControls: false,
           //name: index
         });
+        
       //to implement: when a circle is dragged, the polygon and all other cirlces are deselcted, the other cirlces disappear
       //to implement: when a circle is no longer dragged, we return to the prvious state
       circle.moveDo = () => this.polygonPointMoved(id,pointnr,circle);
@@ -297,13 +317,18 @@ class App extends Component {
       console.log(points);
       points[pointnr] = circle.getCenterPoint();
       console.log(points);
-      const updatedPolgyon = new fabric.Polygon(points, {
+      const updatedPolygon = new fabric.Polygon(points, {
            //left: 0,
            //top: 0,
            fill: 'purple',
            selectable: true,
            objectCaching: false,
+           objectCaching: false,
+           lockMovementX: true,
+           lockMovementY: true,
         });
+      updatedPolygon.selectedDo = () => this.editPolygon(id);
+      objects[id] = updatedPolygon;
       this.setState({MaskObjects: objects});
   }
 
