@@ -58,31 +58,10 @@ class App extends Component {
      this.activateCanvasObject = this.activateCanvasObject.bind(this);
      this.moveCanvasObject = this.moveCanvasObject.bind(this);
      this.polygonPointMoved = this.polygonPointMoved.bind(this);
+     this.leaveEditingPolygon = this.leaveEditingPolygon.bind(this);
   }
 
-  activateCanvasObject(target) {
-    try {
-      //console.log(target.e.shiftKey);
-      if (target.e.shiftKey) {
-        target.selected[0].shiftSelectedDo();
-      }
-    }
-    catch(err) {
-      //It is quite probale that shiftSelect is not defined ;)
-      console.log(err);
-    }
-  }
-
-  moveCanvasObject(target) {
-    try {
-      //console.log(target.target)//.selected[0])
-      target.target.moveDo();
-    }
-    catch(err) {
-      console.log(err);
-    }
-  }
-
+  //Data relatefunctions
   requestData() {
     console.log("in requestData")
     socket.on('data2d', (data2d) => {
@@ -92,69 +71,6 @@ class App extends Component {
     })
     socket.emit('data2d');
   }
-
-  zoomSelect(event, zoom) {
-    //in the functions call from the zoom selector, zoom is e.target.value and
-    //as o7 07/01/2019 a string!
-    const sel = parseInt(zoom);
-    this.setState({zoom: sel});
-    const canvas = this.canvas;
-    const newZoom = sel/(100);
-    console.log(newZoom);
-    const currentZoom = canvas.getZoom(newZoom);
-    // We need to know the current postions of the scroll bars for proper centering
-    const scroller = this.refs.canvascontainer;
-    var newScrollLeft = 0;
-    var newScrollTop = 0;
-
-    //relative position of the beginning of the thumb, adjusted by half the thumbsize
-    const oldScrollLeft = (scroller.scrollLeft + 0.5*scroller.clientWidth^2/scroller.scrollWidth)/scroller.scrollWidth ;
-    const oldScrollTop = (scroller.scrollTop + 0.5*scroller.clientHeight^2/scroller.scrollHeight)/scroller.scrollHeight;
-
-    //Check if we already have a scrollbar
-    const noHscroll = (scroller.clientWidth > canvas.width);
-    const noVscroll = (scroller.clientHeight > canvas.height);
-
-    try {
-      canvas.setZoom(newZoom);
-    }
-    catch(err) {
-        console.log(err);
-    }
-    canvas.setHeight(canvas.height*newZoom/currentZoom);
-    canvas.setWidth(canvas.width*newZoom/currentZoom);
-
-    canvas.calcOffset();
-
-
-
-    const scrollThumbLeft = scroller.clientWidth^2/scroller.scrollWidth;
-    const scrollThumbTop = scroller.clientHeight^2/scroller.scrollHeight;
-
-    if (canvas.width > scroller.clientWidth) {
-      if (noHscroll) {
-        //there is no scroll-bar yet, go to center by default
-
-        newScrollLeft = (scroller.scrollWidth - scrollThumbLeft)/2;
-      }
-      else {
-        newScrollLeft = oldScrollLeft*scroller.scrollWidth - scrollThumbLeft/2
-      }
-      scroller.scrollLeft = newScrollLeft;
-    }
-    if (canvas.height > scroller.clientHeight) {
-      if (noVscroll) {
-        //there is no scroll-bar yet, go to center by default
-        newScrollTop = (scroller.scrollHeight - scrollThumbTop)/2;
-      }
-      else {
-        newScrollTop = oldScrollTop*scroller.scrollHeight - scrollThumbTop/2;
-      }
-      scroller.scrollTop = newScrollTop;
-    }
-    event.preventDefault();
-  }
-
 
   LoadData(img) {
 
@@ -173,6 +89,80 @@ class App extends Component {
     if (imgWidth*imgHeight > 0) {
         const newImg = this.transformData(bwdata, imgWidth, imgHeight);
         this.createImg(newImg);
+    }
+  }
+
+  transformData(bwdata, width, height){
+    var canvasin=this.refs.inputcanvas;
+    canvasin.width = width;
+    canvasin.height = height;
+    const ctx = canvasin.getContext("2d")
+    var data = [];
+    for (let i = 0; i < bwdata.length; i += 1) {
+      let rgb = color(bwdata[i],cg);
+      data[4*i] = rgb[0];
+      data[4*i + 1] = rgb[1];
+      data[4*i + 2] = rgb[2];
+      data[4*i + 3] = 254;
+    }
+    var idata = ctx.createImageData(width, height);
+    idata.data.set(data);
+    ctx.putImageData(idata, 0, 0);
+    var image=new Image();
+    image.src=canvasin.toDataURL();
+    return image;
+  }
+
+  createImg(img)  {
+    const canvas = this.canvas;
+
+    canvas.calcOffset()
+
+    const cImg = new fabric.Image(img, {
+       angle: 0,
+       selectable: false,
+    });
+    const scalingFactorW = canvas.width/img.width
+    const scalingFactorH = canvas.height/img.height
+    const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
+    console.log(canvas.width);
+    console.log(img.width);
+
+
+    cImg.set({
+      scaleX: scalingFactor,
+      scaleY: scalingFactor,
+      left: (canvas.width - img.width*scalingFactor)/2,
+      top: (canvas.height - img.height*scalingFactor)/2,
+    });
+    canvas.add(cImg);
+
+
+  }
+
+  //Canvas actions
+
+  activateCanvasObject(target) {
+    try {
+      //console.log(target.e.shiftKey);
+      if (target.e.shiftKey) {
+        target.selected[0].shiftSelectedDo();
+      }
+    }
+    catch(err) {
+      //It is quite probale that shiftSelectDo is not defined ;)
+      console.log(err);
+    }
+  }
+
+
+  moveCanvasObject(target) {
+    try {
+      //console.log(target.target)//.selected[0])
+      target.target.moveDo();
+    }
+    catch(err) {
+      console.log(err);
     }
   }
 
@@ -263,77 +253,12 @@ class App extends Component {
      }
   }
 
-  transformData(bwdata, width, height){
-    var canvasin=this.refs.inputcanvas;
-    canvasin.width = width;
-    canvasin.height = height;
-    const ctx = canvasin.getContext("2d")
-    var data = [];
-    for (let i = 0; i < bwdata.length; i += 1) {
-      let rgb = color(bwdata[i],cg);
-      data[4*i] = rgb[0];
-      data[4*i + 1] = rgb[1];
-      data[4*i + 2] = rgb[2];
-      data[4*i + 3] = 254;
-    }
-    var idata = ctx.createImageData(width, height);
-    idata.data.set(data);
-    ctx.putImageData(idata, 0, 0);
-    var image=new Image();
-    image.src=canvasin.toDataURL();
-    return image;
-  }
-
-createImg(img)  {
-  const canvas = this.canvas;
-
-  canvas.calcOffset()
-
-  const cImg = new fabric.Image(img, {
-     angle: 0,
-     selectable: false,
-  });
-  const scalingFactorW = canvas.width/img.width
-  const scalingFactorH = canvas.height/img.height
-  const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
-  console.log(canvas.width);
-  console.log(img.width);
+  //Canvas object actions
 
 
-  cImg.set({
-    scaleX: scalingFactor,
-    scaleY: scalingFactor,
-    left: (canvas.width - img.width*scalingFactor)/2,
-    top: (canvas.height - img.height*scalingFactor)/2,
-  });
-  canvas.add(cImg);
-
-
-}
-
-
-componentDidMount() {
-  const canvas = new fabric.Canvas(this.refs.canvas, {
-    width: this.refs.canvas.clientWidth,
-    height: this.refs.canvas.clientHeight
-  });
-  this.canvas = canvas;
-  canvas.on("selection:created", this.activateCanvasObject);
-  canvas.on("selection:updated", this.activateCanvasObject);
-  canvas.on('object:moving',this.moveCanvasObject);
-  canvas.on('mouse:down', this.canvasClick);
-  canvas.on('mouse:dblclick', this.canvasDblClick);
-  this.requestData();
-
-  //const img = this.refs.inputimage
-  //this.LoadData(img);
-}
-
-  addPolygonStart() {
-      this.setState({drawing: "polygon"});
-  }
 
   editPolygon(id) {
+    //TODO: check if any other Poly is in editing mode and leave
     //how do we leave editing mode???
     console.log("Edit poly");
     const polygon = this.state.MaskObjects[id];
@@ -381,6 +306,105 @@ componentDidMount() {
         });
       this.setState({MaskObjects: objects});
   }
+
+ //Canvas state functions
+   addPolygonStart() {
+       this.setState({drawing: "polygon"});
+   }
+
+   leaveEditingPolygon(id) {
+     //first, we rmove any circle object
+     const canvas = this.canvas;
+     canvas.forEachObject(function(obj){
+       if(obj.type === 'circle'){
+                canvas.remove(obj);
+            }
+        });
+        const polygon = this.state.MaskObjects[id];
+        polygon.lockMovementX = false;
+        polygon.lockMovementY = false;
+   }
+
+  zoomSelect(event, zoom) {
+    //in the functions call from the zoom selector, zoom is e.target.value and
+    //as o7 07/01/2019 a string!
+    const sel = parseInt(zoom);
+    this.setState({zoom: sel});
+    const canvas = this.canvas;
+    const newZoom = sel/(100);
+    console.log(newZoom);
+    const currentZoom = canvas.getZoom(newZoom);
+    // We need to know the current postions of the scroll bars for proper centering
+    const scroller = this.refs.canvascontainer;
+    var newScrollLeft = 0;
+    var newScrollTop = 0;
+
+    //relative position of the beginning of the thumb, adjusted by half the thumbsize
+    const oldScrollLeft = (scroller.scrollLeft + 0.5*scroller.clientWidth^2/scroller.scrollWidth)/scroller.scrollWidth ;
+    const oldScrollTop = (scroller.scrollTop + 0.5*scroller.clientHeight^2/scroller.scrollHeight)/scroller.scrollHeight;
+
+    //Check if we already have a scrollbar
+    const noHscroll = (scroller.clientWidth > canvas.width);
+    const noVscroll = (scroller.clientHeight > canvas.height);
+
+    try {
+      canvas.setZoom(newZoom);
+    }
+    catch(err) {
+        console.log(err);
+    }
+    canvas.setHeight(canvas.height*newZoom/currentZoom);
+    canvas.setWidth(canvas.width*newZoom/currentZoom);
+
+    canvas.calcOffset();
+
+    const scrollThumbLeft = scroller.clientWidth^2/scroller.scrollWidth;
+    const scrollThumbTop = scroller.clientHeight^2/scroller.scrollHeight;
+
+    if (canvas.width > scroller.clientWidth) {
+      if (noHscroll) {
+        //there is no scroll-bar yet, go to center by default
+
+        newScrollLeft = (scroller.scrollWidth - scrollThumbLeft)/2;
+      }
+      else {
+        newScrollLeft = oldScrollLeft*scroller.scrollWidth - scrollThumbLeft/2
+      }
+      scroller.scrollLeft = newScrollLeft;
+    }
+    if (canvas.height > scroller.clientHeight) {
+      if (noVscroll) {
+        //there is no scroll-bar yet, go to center by default
+        newScrollTop = (scroller.scrollHeight - scrollThumbTop)/2;
+      }
+      else {
+        newScrollTop = oldScrollTop*scroller.scrollHeight - scrollThumbTop/2;
+      }
+      scroller.scrollTop = newScrollTop;
+    }
+    event.preventDefault();
+  }
+
+
+
+componentDidMount() {
+  const canvas = new fabric.Canvas(this.refs.canvas, {
+    width: this.refs.canvas.clientWidth,
+    height: this.refs.canvas.clientHeight
+  });
+  this.canvas = canvas;
+  canvas.on("selection:created", this.activateCanvasObject);
+  canvas.on("selection:updated", this.activateCanvasObject);
+  canvas.on('object:moving',this.moveCanvasObject);
+  canvas.on('mouse:down', this.canvasClick);
+  canvas.on('mouse:dblclick', this.canvasDblClick);
+  canvas.hoverCursor = 'default';
+  this.requestData();
+
+  //const img = this.refs.inputimage
+  //this.LoadData(img);
+}
+
 
   render() {
     return (

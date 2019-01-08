@@ -15,6 +15,8 @@ from bsxcube import socketio
 from bsxcube import bsxcube
 from bsxcube import server
 
+from fabio import edfimage
+
 from PIL import Image
 import numpy as np
 
