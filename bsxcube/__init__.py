@@ -88,7 +88,7 @@ server.register_error_handler(Exception, exception_handler)
 _session = Session()
 _session.init_app(server)
 
-socketio = SocketIO(manage_session=False)
+socketio = SocketIO(manage_session=False)#,  async_mode="gevent")
 socketio.init_app(server)
 
 # the following test prevents Flask from initializing twice

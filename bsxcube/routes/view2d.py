@@ -47,3 +47,4 @@ def give_image():
     dl = [int(i) for i in data1D]
     #The json dump with json.dumps takes about 70 ms, with ujson.dumps 65ms...
     emit('data2d', {'data': dl, 'width': width, 'height': height})
+    #emit('data2d', {'data': "", 'width': width, 'height': height})

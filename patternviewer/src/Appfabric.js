@@ -3,9 +3,6 @@ import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import {fabric} from 'fabric';
 import {Button} from 'react-bootstrap';
-import { Stage, Layer, Rect, Text, Line } from 'react-konva';
-import { Image as Kimage } from 'react-konva';
-import Konva from 'konva';
 
 import './App.css';
 
@@ -55,13 +52,6 @@ class App extends Component {
                    posX: 0,
                    posY: 0,
                    intensity: 0,
-                   image: null,
-                   scrollX: padding,
-                   scrollY: padding,
-                   y: 0,
-                   x: 0,
-                   scrollBarLength: canvasHeight,
-                   scrollBarWidth: canvasWidth,
                   };
 
      this.createImg = this.createImg.bind(this);
@@ -78,8 +68,6 @@ class App extends Component {
      this.moveCanvasObject = this.moveCanvasObject.bind(this);
      this.polygonPointMoved = this.polygonPointMoved.bind(this);
      this.leaveEditingPolygon = this.leaveEditingPolygon.bind(this);
-     this.verticalScroll = this.verticalScroll.bind(this);
-     this.horizontalScroll = this.horizontalScroll.bind(this);
   }
 
 
@@ -146,49 +134,39 @@ class App extends Component {
   }
 
   createImg(img)  {
+    const canvas = this.canvas;
 
+    canvas.calcOffset()
 
-       const scalingFactorW = (canvasWidth-scrollBarSize)/img.width
-       const scalingFactorH = (canvasHeight-scrollBarSize)/img.height
-       const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
+    const cImg = new fabric.Image(img, {
+       angle: 0,
+       selectable: false,
+    });
+    const scalingFactorW = (canvas.width-scrollBarSize)/img.width
+    const scalingFactorH = (canvas.height-scrollBarSize)/img.height
+    const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
+    //console.log(canvas.width);
+    //console.log(img.width);
+    const offsetX = (canvas.width - img.width*scalingFactor)/2 - scrollBarSize;
+    const offsetY = (canvas.height - img.height*scalingFactor)/2 - scrollBarSize;
+    cImg.set({
+      scaleX: scalingFactor,
+      scaleY: scalingFactor,
+      left: offsetX,
+      top: offsetY,
+    });
+    canvas.add(cImg);
 
-       const offsetX = (canvasWidth - img.width*scalingFactor)/2 - scrollBarSize;
-       const offsetY = (canvasHeight - img.height*scalingFactor)/2 - scrollBarSize;
-
-       img.width = img.width*scalingFactor;
-       img.height = img.height*scalingFactor;
 
     this.setState(prevState => ({
-      image: img,
       imageScale: scalingFactor,
       imageOffsetX: offsetX,
       imageOffsetY: offsetY,
      }));
-
+    canvas.renderAll();
   }
 
   //Canvas actions
-
-  verticalScroll(e) {
-    const barHeight = this.state.scrollBarLength;
-
-    const availableHeight = canvasHeight - padding * 2 - barHeight;
-    if (availableHeight > 0) {
-      var delta = (e.target._lastPos.y - padding) / availableHeight;
-      const y = -canvasHeight * delta * this.state.zoom/100;
-      this.setState(prevState => ({scrollY: e.target._lastPos.y, y: y}))
-    }
-  }
-
-  horizontalScroll(e) {
-    const barWidth = this.state.scrollBarWidth;
-    const availableWidth = canvasWidth - padding * 2 - barWidth;
-    if (availableWidth > 0) {
-      var delta = (e.target._lastPos.x - padding) / availableWidth;
-      const x = -canvasWidth * delta * this.state.zoom/100;
-      this.setState(prevState => ({scrollX: e.target._lastPos.x, x: x}))
-    }
-  }
 
   activateCanvasObject(target) {
     try {
@@ -213,44 +191,50 @@ class App extends Component {
   }
 
   canvasMouseMove(event) {
-      //console.log(event);
-      const posX = event.evt.layerX;
-      const posY = event.evt.layerY;
-      //console.log(this.state.offsetX, this.state.imageScale)
-      const realX = Math.floor(((posX-  this.state.x)/this.state.zoom*100 - this.state.imageOffsetX)/this.state.imageScale );
-      const realY = Math.floor(((posY-  this.state.y)/this.state.zoom*100 - this.state.imageOffsetY)/this.state.imageScale );
-      var int1D = 0;
 
+      const posX = event.absolutePointer.x;
+      const posY = event.absolutePointer.y;
+      //console.log(this.state.offsetX, this.state.imageScale)
+      const realX = Math.floor((posX - this.state.imageOffsetX)/this.state.imageScale);
+      const realY = Math.floor((posY - this.state.imageOffsetY)/this.state.imageScale);
+      var int1D = 0;
       try {
         //If data not yet loaded, this will fail
-       int1D = this.state.rawData.data[realY*this.state.rawData.width+ realX];
-      }
-      catch (err) {
-        console.log(err);
+        int1D = this.state.rawData.data[realY*this.state.rawData.width+ realX];
+       }
+       catch (err) {
+         console.log(err);
 
        }
       this.setState(prevState => ({posX: realX, posY: realY, intensity:int1D}));
   }
 
   canvasClick(options) {
-    console.log(options);
+    console.log(options.e);
 
     //console.log(options.pointer);
     //console.log(options.absolutePointer);
+    try {
+      var canvas = options.target.canvas;
+    }
+    catch(err) {
+        console.log(err);
+        return;
+    }
 
     switch(this.state.drawing) {
        case "polygon":
-         const posX = options.evt.layerX;
-         const posY = options.evt.layerY;
-         //const newPoint = {x: Math.floor((posX - this.state.imageOffsetX)/this.state.imageScale),
-        //                   y: Math.floor((posY - this.state.imageOffsetY)/this.state.imageScale)};
-         const newPoint = {x: posX,y: posY};
-         console.log(newPoint);
-
-         //if (this.state.objectUnderCreation.length > 0) {
-        //     const lastPoint = this.state.objectUnderCreation[this.state.objectUnderCreation.length-1]
-
-         //};
+         const newPoint = options.absolutePointer;
+         if (this.state.objectUnderCreation.length > 0) {
+             const lastPoint = this.state.objectUnderCreation[this.state.objectUnderCreation.length-1]
+             const segment = new fabric.Line([lastPoint.x, lastPoint.y, newPoint.x, newPoint.y],
+                                     {fill: 'red',
+                                     stroke: 'white',
+                                     strokeWidth: 1/canvas.getZoom(),
+                                     selectable: false,
+                                     evented: false,});
+              canvas.add(segment);
+         };
          this.setState(prevState => ({
             objectUnderCreation: [...prevState.objectUnderCreation, newPoint]
           }));
@@ -339,7 +323,7 @@ class App extends Component {
           originY: 'center',
           hasBorders: false,
           hasControls: false,
-
+          //name: index
         });
 
       //to implement: when a circle is dragged, the polygon and all other cirlces are deselcted, the other cirlces disappear
@@ -396,32 +380,80 @@ class App extends Component {
   zoomSelect(event, zoom) {
     //in the functions call from the zoom selector, zoom is e.target.value and
     //as o7 07/01/2019 a string!
-    const newZoom = parseInt(zoom);
-    const currentZoom = this.state.zoom;
-    //const canvas = this.canvas;
+    const sel = parseInt(zoom);
+    this.setState({zoom: sel});
+    const canvas = this.canvas;
+    const newZoom = sel/(100);
+    console.log(newZoom);
+    const currentZoom = canvas.getZoom(newZoom);
     // We need to know the current postions of the scroll bars for proper centering
-    const scrollY = Math.floor(this.state.scrollY*currentZoom/newZoom);
-    const scrollX = Math.floor(this.state.scrollX*currentZoom/newZoom);
-    this.setState(prevState => ({zoom: newZoom, scrollX: 0, scrollY: 0,
-                                 scrollBarWidth: Math.floor(100*canvasWidth/newZoom),
-                                 scrollBarLength: Math.floor(100*canvasHeight/newZoom)}));
-    //relative position of the beginning of the thumb, adjusted by half the thumbsize
+    const scroller = this.refs.canvascontainer;
+    var newScrollLeft = 0;
+    var newScrollTop = 0;
 
+    //relative position of the beginning of the thumb, adjusted by half the thumbsize
+    const oldScrollLeft = (scroller.scrollLeft + 0.5*scroller.clientWidth^2/scroller.scrollWidth)/scroller.scrollWidth ;
+    const oldScrollTop = (scroller.scrollTop + 0.5*scroller.clientHeight^2/scroller.scrollHeight)/scroller.scrollHeight;
+
+    //Check if we already have a scrollbar
+    const noHscroll = (scroller.clientWidth > canvas.width);
+    const noVscroll = (scroller.clientHeight > canvas.height);
+
+    try {
+      canvas.setZoom(newZoom);
+    }
+    catch(err) {
+        console.log(err);
+    }
+    canvas.setHeight(canvas.height*newZoom/currentZoom);
+    canvas.setWidth(canvas.width*newZoom/currentZoom);
+
+    canvas.calcOffset();
+
+    const scrollThumbLeft = scroller.clientWidth^2/scroller.scrollWidth;
+    const scrollThumbTop = scroller.clientHeight^2/scroller.scrollHeight;
+
+    if (canvas.width > scroller.clientWidth) {
+      if (noHscroll) {
+        //there is no scroll-bar yet, go to center by default
+
+        newScrollLeft = (scroller.scrollWidth - scrollThumbLeft)/2;
+      }
+      else {
+        newScrollLeft = oldScrollLeft*scroller.scrollWidth - scrollThumbLeft/2
+      }
+      scroller.scrollLeft = newScrollLeft;
+    }
+    if (canvas.height > scroller.clientHeight) {
+      if (noVscroll) {
+        //there is no scroll-bar yet, go to center by default
+        newScrollTop = (scroller.scrollHeight - scrollThumbTop)/2;
+      }
+      else {
+        newScrollTop = oldScrollTop*scroller.scrollHeight - scrollThumbTop/2;
+      }
+      scroller.scrollTop = newScrollTop;
+    }
+    event.preventDefault();
   }
 
 
 
 componentDidMount() {
-  //const image = new window.Image();
-  //image.src = 'https://konvajs.github.io/assets/yoda.jpg';
-  //image.onload = () => {
-        // setState will redraw layer
-        // because "image" property is changed
-  //      this.setState({
-  //        image: image
-  //      });
-  //  };
-   this.requestData();
+  const canvas = new fabric.Canvas(this.refs.canvas, {
+    width: this.refs.canvas.clientWidth,
+    height: this.refs.canvas.clientHeight
+  });
+  this.canvas = canvas;
+  canvas.on("selection:created", this.activateCanvasObject);
+  canvas.on("selection:updated", this.activateCanvasObject);
+  canvas.on('object:moving',this.moveCanvasObject);
+  canvas.on('mouse:down', this.canvasClick);
+  canvas.on('mouse:dblclick', this.canvasDblClick);
+  canvas.on('mouse:move', this.canvasMouseMove);
+
+  canvas.hoverCursor = 'default';
+  this.requestData();
 
   //const img = this.refs.inputimage
   //this.LoadData(img);
@@ -429,17 +461,6 @@ componentDidMount() {
 
 
   render() {
-    var lines = [];
-    if (this.state.objectUnderCreation.length > 1) {
-      let point = this.state.objectUnderCreation[0];
-
-      for (let p = 1; p <= this.state.objectUnderCreation.length-1; p++) {
-        //console.log(point);
-        let newPoint = this.state.objectUnderCreation[p];
-        lines.push([point.x, point.y, newPoint.x, newPoint.y]);
-        point = newPoint;
-      }
-    }
     return (
       <div className="App">
         <div className="navbar">
@@ -458,59 +479,24 @@ componentDidMount() {
               </select>
               </ul>
           </div>
-          <Stage ref="canvas" className="canvascontainer"
-                 width={canvasWidth} height={canvasHeight}
-                 >
-            <Layer scaleX={this.state.zoom/100}
-                   scaleY={this.state.zoom/100}
-                   y={this.state.y}
-                   x={this.state.x}
-                   >
-            <Kimage
-                image={this.state.image}
-                 y={this.state.imageOffsetY}
-                 x={this.state.imageOffsetX}
-                ref={node => {
-                  this.imageNode = node;
-                }}
-                onMouseMove={this.canvasMouseMove}
-                onClick={this.canvasClick}
-              />
-
-              {lines.map(line =>
-                 <Line points={line}
-                       stroke={"white"}/>)}
-
-            </Layer>
-
-            <Layer>
-              <Rect width={10} height={this.state.scrollBarLength} fill={"blue"} opacity={0.3} x={canvasWidth-padding-10}
-                    y={this.state.scrollY} draggable={true} dragBoundFunc={function (pos) {
-                        pos.x = canvasWidth - padding - 10;
-                        pos.y = Math.max(Math.min(pos.y, canvasHeight - this.height() - padding), padding);
-                        return pos;}}
-                        onDragMove={this.verticalScroll}/>
-              <Rect width={this.state.scrollBarWidth} height={10} fill={"blue"} opacity={0.3} x={this.state.scollX}
-                    y={canvasHeight-padding-10} draggable={true} dragBoundFunc={function (pos) {
-                        pos.x = Math.max(Math.min(pos.x, canvasWidth - this.width() - padding), padding);
-                        pos.y = canvasHeight - padding - 10;
-                        return pos;}}
-                        onDragMove={this.horizontalScroll}/>
-            </Layer>
-
-
-          </Stage>
-          <div className="intensityBox">x: {this.state.posX}, y: {this.state.posY}, intensity: {this.state.intensity}</div>
-          <div className="maskPanel">
-            <Button onClick={this.addPolygonStart}> Add Polygon</Button>
-          </div>
+                <div ref="canvascontainer"  className="canvascontainer"
+                     style={{padding: padding,
+                             width: canvasWidth + 2*padding,
+                             height: canvasHeight + 2*padding}}>
+                    <canvas ref="canvas" className="mainCanvas"
+                            style={{width: canvasWidth,
+                                    height: canvasHeight}}/>
+                </div>
+                <div className="intensityBox">x: {this.state.posX}, y: {this.state.posY}, intensity: {this.state.intensity}</div>
+                <div className="maskPanel">
+                  <Button onClick={this.addPolygonStart}> Add Polygon</Button>
+                </div>
         <canvas ref="inputcanvas" width={canvasWidth} height={canvasHeight}
                 className="hidden"/>
       </div>
     );
   }
 }
-
 
 
 

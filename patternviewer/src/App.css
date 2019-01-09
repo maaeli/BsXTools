@@ -40,8 +40,8 @@ grid-row-gap: 0;
   /*padding-bottom: 20px;
   //padding-right: 20px;
   //padding-top: 20px;
-  padding-left: 20px; */
-  border: solid 1px red;
+  padding-left: 20px;
+  border: solid 1px red;*/
   overflow: scroll;
   /*height: 400px;
   width: 600px;*/
@@ -58,38 +58,42 @@ grid-row-gap: 0;
     padding-right: 0;
     margin-left: auto;
     margin-right: auto;
-    display: block;
-    /*height: 330px;
-    width: 560px;*/
+
 }
 
 .intensityBox {
-    background: rgba(0, 0, 0, 0.3);
-    border: thin solid rgba(0, 0, 0, 0.6);
+    background: white;
+
     color:# #eeeeee;
     font-family: Droid Sans, Arial, Helvetica, sans-serif;
     font-size: 12px;
     cursor: pointer;
-    -webkit-box-shadow: rgba(0,0,0,0.5) 5px 5px 20px;
-    -moz-box-shadow: rgba(0,0,0,0.5) 5px 5px 20px;
-    box-shadow: rgba(0,0,0,0.5) 5px 5px 20px;
+
     grid-column-start: 1;
     grid-column-end: 1;
     grid-row-start: 3;
     grid-row-end: 3;
     text-align: left;
-    padding-left: 30px;
+    padding-left: 40px;
+    place-self: left;
 }
 
 ::-webkit-scrollbar {
   -webkit-appearance: none;
   width: 10px;
+  background-color: darkgrey;
 }
+
+
 
 ::-webkit-scrollbar-thumb {
   border-radius: 5px;
   background-color: rgba(0,0,0,.5);
   -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
+}
+
+::-webkit-scrollbar-corner {
+  background-color: darkgrey;
 }
 
 .navbar{
