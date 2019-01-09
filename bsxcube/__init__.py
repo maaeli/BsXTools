@@ -1,7 +1,7 @@
 #from __future__ import absolute_import
 
 from gevent import monkey
-monkey.patch_all(thread=False)
+monkey.patch_all(thread=True)
 
 #import mock
 import os

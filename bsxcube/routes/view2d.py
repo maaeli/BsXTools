@@ -1,4 +1,4 @@
-import gevent
+#import gevent
 import logging
 from flask import (
     session,
@@ -30,7 +30,7 @@ else:
     data2D = np.array(testimage, dtype=int)
 
 print(data2D)
- 
+
 #from scipy.misc import toimage
 #toimage(data2D).show()
 
@@ -45,4 +45,5 @@ def give_image():
     print(width, height)
     data1D = data2D.reshape((width*height,))
     dl = [int(i) for i in data1D]
+    #The json dump with json.dumps takes about 70 ms, with ujson.dumps 65ms...
     emit('data2d', {'data': dl, 'width': width, 'height': height})

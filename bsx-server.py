@@ -2,7 +2,7 @@
 
 import sys
 import redis
-
+#import meinheld
 
 if __name__ == '__main__':
     db = redis.Redis()
@@ -16,3 +16,5 @@ if __name__ == '__main__':
     from bsxcube import server, socketio
 
     socketio.run(server, host='0.0.0.0', port=8081)
+    #meinheld.listen(("0.0.0.0", 8081))
+    #meinheld.run(server)

@@ -68,16 +68,19 @@ class App extends Component {
      this.leaveEditingPolygon = this.leaveEditingPolygon.bind(this);
   }
 
+
+
   //Data relatefunctions
   requestData() {
     console.log("in requestData")
     socket.on('data2d', (data2d) => {
       console.log(data2d.width, data2d.height);
-      const newImg = this.transformData(data2d.data, data2d.width, data2d.height);
-      this.createImg(newImg);
       this.setState(prevState => ({
          rawData: {data: data2d.data, width: data2d.width, height: data2d.height}
        }));
+      const newImg = this.transformData(data2d.data, data2d.width, data2d.height);
+      this.createImg(newImg);
+
     });
     socket.emit('data2d');
   }
@@ -108,22 +111,17 @@ class App extends Component {
     canvasin.height = height;
     const ctx = canvasin.getContext("2d");
     //let max = Math.max(bwdata);
-    var data = [];
+    var data = new Uint8ClampedArray(bwdata.length*4);
     for (let i = 0; i < bwdata.length; i += 1) {
       let intensity = bwdata[i];
       intensity = (0 < intensity && intensity <= this.state.minimumInt) ? 0 : intensity
       intensity = (intensity >= this.state.maximumInt) ? this.state.maximumInt : intensity
       intensity = 255*(intensity - this.state.minimumInt)/(this.state.maximumInt - this.state.minimumInt)
       let rgb = color(intensity,cg);
-      try {
-        data[4*i] = rgb[0];
-        data[4*i + 1] = rgb[1];
-        data[4*i + 2] = rgb[2];
-        data[4*i + 3] = 254;
-      }
-      catch (err) {
-        console.log(bwdata[i], rgb);
-      }
+      data[4*i] = rgb[0];
+      data[4*i + 1] = rgb[1];
+      data[4*i + 2] = rgb[2];
+      data[4*i + 3] = 254;
     }
     var idata = ctx.createImageData(width, height);
     idata.data.set(data);
@@ -162,18 +160,6 @@ class App extends Component {
       imageOffsetX: offsetX,
       imageOffsetY: offsetY,
      }));
-    //  //add a invisible rectangle to the canvas for over events
-    //  const rect = new fabric.Rect({
-    //    left: offsetX,
-    //    top: offsetY,
-    //    width: img.width*scalingFactor,
-    //    height: img.height*scalingFactor,
-    //    fill: 'rgba(0,0,0,0)',
-    //    stroke: 'rgba(0,0,0,0)',
-    //    strokeWidth: 0,
-    //    selectable: false,
-    // });
-    // canvas.add(rect);
     canvas.renderAll();
   }
 
@@ -206,9 +192,18 @@ class App extends Component {
       const posX = event.absolutePointer.x;
       const posY = event.absolutePointer.y;
       //console.log(this.state.offsetX, this.state.imageScale)
-      const realX = (posX - this.state.imageOffsetX)/this.state.imageScale;
-      const realY = (posY - this.state.imageOffsetY)/this.state.imageScale;
-      this.setState(prevState => ({posX: Math.floor(realX), posY: Math.floor(realY)}));
+      const realX = Math.floor((posX - this.state.imageOffsetX)/this.state.imageScale);
+      const realY = Math.floor((posY - this.state.imageOffsetY)/this.state.imageScale);
+      var int1D = 0;
+      try {
+        //If data not yet loaded, this will fail
+        int1D = this.state.rawData.data[realY*this.state.rawData.width+ realX];
+       }
+       catch (err) {
+         console.log(err);
+         
+       }
+      this.setState(prevState => ({posX: realX, posY: realY, intensity:int1D}));
   }
 
   canvasClick(options) {
