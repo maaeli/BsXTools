@@ -244,7 +244,8 @@ class App extends Component {
          const posY = options.evt.layerY;
          //const newPoint = {x: Math.floor((posX - this.state.imageOffsetX)/this.state.imageScale),
         //                   y: Math.floor((posY - this.state.imageOffsetY)/this.state.imageScale)};
-         const newPoint = {x: posX,y: posY};
+         const newPoint = {x: Math.floor((posX-  this.state.x)/this.state.zoom*100),
+                           y: Math.floor((posY-  this.state.y)/this.state.zoom*100)};
          console.log(newPoint);
 
          //if (this.state.objectUnderCreation.length > 0) {
