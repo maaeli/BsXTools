@@ -65,6 +65,7 @@ class App extends Component {
                    scrollBarWidth: canvasWidth,
                    imageWidth:  canvasWidth,
                    imageHeight:  canvasHeight,
+                   lastClick: null,
                   };
 
      this.createImg = this.createImg.bind(this);
@@ -89,9 +90,9 @@ class App extends Component {
 
   //Data relatefunctions
   requestData() {
-    console.log("in requestData")
+
     socket.on('data2d', (data2d) => {
-      console.log(data2d.width, data2d.height);
+
       this.setState(prevState => ({
          rawData: {data: data2d.data, width: data2d.width, height: data2d.height},
          imageWidth: data2d.width,
@@ -201,7 +202,6 @@ class App extends Component {
 
   activateCanvasObject(target) {
     try {
-      //console.log(target.e.shiftKey);
         target.selected[0].selectedDo();
     }
     catch(err) {
@@ -223,17 +223,16 @@ class App extends Component {
 
   canvasMouseMove(event) {
 
-      //console.log(event);
       const posX = event.evt.layerX;
       const posY = event.evt.layerY;
-      //console.log(this.state.offsetX, this.state.imageScale)
+
       //starting at 1,1!
       const realX = (100*(posX-this.state.x)/this.state.zoom - this.state.imageOffsetX)/this.state.imageScaleX + 1;
       const realY = (100*(posY-this.state.y)/this.state.zoom - this.state.imageOffsetY)/this.state.imageScaleY + 1;
       var int1D = 0;
 
       try {
-        //If data not yet loaded, this will fail
+        //1,1 -> 0!
        int1D = this.state.rawData.data[Math.floor(realY-1)*this.state.rawData.width+ Math.floor(realX-1)];
       }
       catch (err) {
@@ -244,35 +243,29 @@ class App extends Component {
   }
 
   canvasClick(options) {
-
     const posX = options.evt.layerX;
     const posY = options.evt.layerY;
-    console.log(options);
-
-    const newPoint = {x: (posX-  this.state.x)/this.state.zoom*100,
-                      y: (posY-  this.state.y)/this.state.zoom*100};
-
-    //console.log(options.pointer);
-    console.log(this.state.imageOffsetY);
-
+    const time = options.evt.timeStamp;
+    if (this.state.lastClick) {
+      if (Math.abs(this.state.lastClick[0] - posX) < 2 &&
+          Math.abs(this.state.lastClick[1] - posY) < 2 && //DoubleClick!
+          (time - this.state.lastClick[2]) < 250 ){
+            this.canvasDblClick(options);
+            return;
+          }
+    }
+    this.setState(prevState => ({
+       lastClick: [posX,posY, time]
+     }));
     switch(this.state.drawing) {
        case "polygon":
+         const newPoint = {x: (posX-  this.state.x)/this.state.zoom*100,
+                           y: (posY-  this.state.y)/this.state.zoom*100};
 
-       // const posX = options.evt.layerX;
-       // const posY = options.evt.layerY;
-       //   //const newPoint = {x: Math.floor((posX - this.state.imageOffsetX)/this.state.imageScale),
-       //  //                   y: Math.floor((posY - this.state.imageOffsetY)/this.state.imageScale)};
-       //   const newPoint = {x: Math.floor((posX-  this.state.x)/this.state.zoom*100),
-       //                     y: Math.floor((posY-  this.state.y)/this.state.zoom*100)};
-       //
-       //   //if (this.state.objectUnderCreation.length > 0) {
-        //     const lastPoint = this.state.objectUnderCreation[this.state.objectUnderCreation.length-1]
-
-         //};
          this.setState(prevState => ({
             objectUnderCreation: [...prevState.objectUnderCreation, newPoint]
           }));
-          console.log(this.state.objectUnderCreation);
+          //console.log(this.state.objectUnderCreation);
 
          break;
        default:
@@ -281,51 +274,27 @@ class App extends Component {
   }
 
   canvasDblClick(options) {
-    try {
-      var canvas = options.target.canvas;
-    }
-    catch(err) {
-      console.log(err);
-      return;
-    }
-
     switch(this.state.drawing) {
        case "polygon":
          const newObject = this.state.objectUnderCreation;
          if (newObject.length > 3) {
-           //the last point actually comes from this double-click, let's get rid of interval
-           newObject.pop();
-
-           const polygon = new fabric.Polygon(newObject, {
-                //left: 0,
-                //top: 0,
-                fill: 'purple',
-                selectable: true,
-                objectCaching: false,
-                lockMovementX: true,
-                lockMovementY: true,
-                //borderColor: 'purple',
-
-              });
-
-          //let's clean up the canvas ATTENTION: this assumes no other lines!
-           canvas.forEachObject(function(obj){
-             if(obj.type === 'line'){
-                      canvas.remove(obj);
-                  }
-              });
-           canvas.add(polygon);
-           canvas.renderAll();
-           const polygonID = this.state.MaskObjects.length;
+           //the last point actually comes from this double-click,
+           // we might consider removing it
+           //newObject.pop();
+           const polyPoints = [];
+           for (let p of newObject) {
+             polyPoints.push(p.x);
+             polyPoints.push(p.y);
+           }
+           const polygon = {type: "Polygon", points: polyPoints}
            this.setState(prevState => ({
                 drawing: "None",
                 objectUnderCreation: [],
                 MaskObjects: [...prevState.MaskObjects, polygon],
             }));
-            polygon.selectedDo = () => this.editPolygon(polygonID);
          }
          else {
-           //Here, we should throw a notice
+           //Here, we might throw a notice
          };
 
          break;
@@ -435,7 +404,7 @@ componentDidMount() {
 
 
   render() {
-    var lines = [];
+    let lines = [];
     if (this.state.objectUnderCreation.length > 1) {
       let point = this.state.objectUnderCreation[0];
 
@@ -445,31 +414,20 @@ componentDidMount() {
         point = newPoint;
       }
     }
-    let image;
+    let polygons = [];
+    for (let objectID in this.state.MaskObjects) {
+      let object = this.state.MaskObjects[objectID];
+      if (object.type === "Polygon") {
+         polygons.push({points: object.points, id: objectID});
+      }
+    }
+
+    let imageWidth
     if (this.state.image) {
-       image = <Kimage
-           image={this.state.image}
-            y={this.state.imageOffsetY}
-            x={this.state.imageOffsetX}
-           ref={node => {
-             this.imageNode = node;
-           }}
-           width={this.state.image.width}
-           onMouseMove={this.canvasMouseMove}
-           onClick={this.canvasClick}
-         />
+       imageWidth = this.state.image.width;
     }
     else {
-      image = <Kimage
-          image={this.state.image}
-           y={this.state.imageOffsetY}
-           x={this.state.imageOffsetX}
-          ref={node => {
-            this.imageNode = node;
-          }}
-          onMouseMove={this.canvasMouseMove}
-          onClick={this.canvasClick}
-        />
+      imageWidth = canvasWidth;
     }
     return (
       <div className="App">
@@ -498,11 +456,25 @@ componentDidMount() {
                    x={this.state.x}
                    >
 
-              {image}
+                   <Kimage
+                       image={this.state.image}
+                        y={this.state.imageOffsetY}
+                        x={this.state.imageOffsetX}
+
+                       width={imageWidth}
+                       onMouseMove={this.canvasMouseMove}
+                       onClick={this.canvasClick}
+
+                     />
               {lines.map(line =>
                  <Line points={line}
                        stroke={"white"}
                        strokeWidth={100/this.state.zoom}/>)}
+               {polygons.map(line =>
+                  <Line points={line.points}
+                        closed={true}
+                        fill={'rgba(255, 255, 255, 0.3)'}
+                        onMouseMove={this.canvasMouseMove}/>)}
 
             </Layer>
 
