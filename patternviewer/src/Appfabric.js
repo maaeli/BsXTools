@@ -445,6 +445,7 @@ componentDidMount() {
     height: this.refs.canvas.clientHeight
   });
   this.canvas = canvas;
+  
   canvas.on("selection:created", this.activateCanvasObject);
   canvas.on("selection:updated", this.activateCanvasObject);
   canvas.on('object:moving',this.moveCanvasObject);

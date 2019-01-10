@@ -40,7 +40,8 @@ class App extends Component {
   constructor(props){
      super(props)
 
-     this.state = {imageScale: 1,
+     this.state = {imageScaleX: 1,
+                   imageScaleY: 1,
                    imageOffsetX: 0,
                    imageOffsetY: 0,
                    drawing: "None",
@@ -62,6 +63,8 @@ class App extends Component {
                    x: 0,
                    scrollBarLength: canvasHeight,
                    scrollBarWidth: canvasWidth,
+                   imageWidth:  canvasWidth,
+                   imageHeight:  canvasHeight,
                   };
 
      this.createImg = this.createImg.bind(this);
@@ -90,7 +93,9 @@ class App extends Component {
     socket.on('data2d', (data2d) => {
       console.log(data2d.width, data2d.height);
       this.setState(prevState => ({
-         rawData: {data: data2d.data, width: data2d.width, height: data2d.height}
+         rawData: {data: data2d.data, width: data2d.width, height: data2d.height},
+         imageWidth: data2d.width,
+         imageHeight: data2d.height,
        }));
       const newImg = this.transformData(data2d.data, data2d.width, data2d.height);
       this.createImg(newImg);
@@ -150,17 +155,21 @@ class App extends Component {
 
        const scalingFactorW = (canvasWidth-scrollBarSize)/img.width
        const scalingFactorH = (canvasHeight-scrollBarSize)/img.height
-       const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
+       const scalingFactor = 0.98*Math.min(scalingFactorW,scalingFactorH)
 
-       const offsetX = (canvasWidth - img.width*scalingFactor)/2 - scrollBarSize;
-       const offsetY = (canvasHeight - img.height*scalingFactor)/2 - scrollBarSize;
+       const offsetX = Math.floor(canvasWidth - img.width*scalingFactor)/2 - scrollBarSize;
+       const offsetY = Math.max(0,((canvasHeight - img.height*scalingFactor)/2 - scrollBarSize));
+
 
        img.width = img.width*scalingFactor;
        img.height = img.height*scalingFactor;
 
+
+
     this.setState(prevState => ({
       image: img,
-      imageScale: scalingFactor,
+      imageScaleX: img.width/this.state.rawData.width, //img.width is always int!
+      imageScaleY: img.height/this.state.rawData.height, //img.width is always int!
       imageOffsetX: offsetX,
       imageOffsetY: offsetY,
      }));
@@ -213,17 +222,19 @@ class App extends Component {
   }
 
   canvasMouseMove(event) {
+
       //console.log(event);
       const posX = event.evt.layerX;
       const posY = event.evt.layerY;
       //console.log(this.state.offsetX, this.state.imageScale)
-      const realX = Math.floor(((posX-  this.state.x)/this.state.zoom*100 - this.state.imageOffsetX)/this.state.imageScale );
-      const realY = Math.floor(((posY-  this.state.y)/this.state.zoom*100 - this.state.imageOffsetY)/this.state.imageScale );
+      //starting at 1,1!
+      const realX = (100*(posX-this.state.x)/this.state.zoom - this.state.imageOffsetX)/this.state.imageScaleX + 1;
+      const realY = (100*(posY-this.state.y)/this.state.zoom - this.state.imageOffsetY)/this.state.imageScaleY + 1;
       var int1D = 0;
 
       try {
         //If data not yet loaded, this will fail
-       int1D = this.state.rawData.data[realY*this.state.rawData.width+ realX];
+       int1D = this.state.rawData.data[Math.floor(realY-1)*this.state.rawData.width+ Math.floor(realX-1)];
       }
       catch (err) {
         console.log(err);
@@ -233,22 +244,28 @@ class App extends Component {
   }
 
   canvasClick(options) {
+
+    const posX = options.evt.layerX;
+    const posY = options.evt.layerY;
     console.log(options);
 
+    const newPoint = {x: (posX-  this.state.x)/this.state.zoom*100,
+                      y: (posY-  this.state.y)/this.state.zoom*100};
+
     //console.log(options.pointer);
-    //console.log(options.absolutePointer);
+    console.log(this.state.imageOffsetY);
 
     switch(this.state.drawing) {
        case "polygon":
-         const posX = options.evt.layerX;
-         const posY = options.evt.layerY;
-         //const newPoint = {x: Math.floor((posX - this.state.imageOffsetX)/this.state.imageScale),
-        //                   y: Math.floor((posY - this.state.imageOffsetY)/this.state.imageScale)};
-         const newPoint = {x: Math.floor((posX-  this.state.x)/this.state.zoom*100),
-                           y: Math.floor((posY-  this.state.y)/this.state.zoom*100)};
-         console.log(newPoint);
 
-         //if (this.state.objectUnderCreation.length > 0) {
+       // const posX = options.evt.layerX;
+       // const posY = options.evt.layerY;
+       //   //const newPoint = {x: Math.floor((posX - this.state.imageOffsetX)/this.state.imageScale),
+       //  //                   y: Math.floor((posY - this.state.imageOffsetY)/this.state.imageScale)};
+       //   const newPoint = {x: Math.floor((posX-  this.state.x)/this.state.zoom*100),
+       //                     y: Math.floor((posY-  this.state.y)/this.state.zoom*100)};
+       //
+       //   //if (this.state.objectUnderCreation.length > 0) {
         //     const lastPoint = this.state.objectUnderCreation[this.state.objectUnderCreation.length-1]
 
          //};
@@ -413,19 +430,7 @@ class App extends Component {
 
 
 componentDidMount() {
-  //const image = new window.Image();
-  //image.src = 'https://konvajs.github.io/assets/yoda.jpg';
-  //image.onload = () => {
-        // setState will redraw layer
-        // because "image" property is changed
-  //      this.setState({
-  //        image: image
-  //      });
-  //  };
    this.requestData();
-
-  //const img = this.refs.inputimage
-  //this.LoadData(img);
 }
 
 
@@ -435,11 +440,36 @@ componentDidMount() {
       let point = this.state.objectUnderCreation[0];
 
       for (let p = 1; p <= this.state.objectUnderCreation.length-1; p++) {
-        //console.log(point);
         let newPoint = this.state.objectUnderCreation[p];
         lines.push([point.x, point.y, newPoint.x, newPoint.y]);
         point = newPoint;
       }
+    }
+    let image;
+    if (this.state.image) {
+       image = <Kimage
+           image={this.state.image}
+            y={this.state.imageOffsetY}
+            x={this.state.imageOffsetX}
+           ref={node => {
+             this.imageNode = node;
+           }}
+           width={this.state.image.width}
+           onMouseMove={this.canvasMouseMove}
+           onClick={this.canvasClick}
+         />
+    }
+    else {
+      image = <Kimage
+          image={this.state.image}
+           y={this.state.imageOffsetY}
+           x={this.state.imageOffsetX}
+          ref={node => {
+            this.imageNode = node;
+          }}
+          onMouseMove={this.canvasMouseMove}
+          onClick={this.canvasClick}
+        />
     }
     return (
       <div className="App">
@@ -467,20 +497,12 @@ componentDidMount() {
                    y={this.state.y}
                    x={this.state.x}
                    >
-            <Kimage
-                image={this.state.image}
-                 y={this.state.imageOffsetY}
-                 x={this.state.imageOffsetX}
-                ref={node => {
-                  this.imageNode = node;
-                }}
-                onMouseMove={this.canvasMouseMove}
-                onClick={this.canvasClick}
-              />
 
+              {image}
               {lines.map(line =>
                  <Line points={line}
-                       stroke={"white"}/>)}
+                       stroke={"white"}
+                       strokeWidth={100/this.state.zoom}/>)}
 
             </Layer>
 
@@ -501,7 +523,7 @@ componentDidMount() {
 
 
           </Stage>
-          <div className="intensityBox">x: {this.state.posX}, y: {this.state.posY}, intensity: {this.state.intensity}</div>
+          <div className="intensityBox">x: {Math.floor(this.state.posX)}, y: {Math.floor(this.state.posY)}, intensity: {this.state.intensity}</div>
           <div className="maskPanel">
             <Button onClick={this.addPolygonStart}> Add Polygon</Button>
           </div>
