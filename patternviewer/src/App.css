@@ -78,7 +78,7 @@ grid-row-gap: 0;
     place-self: left;
 }
 
-::-webkit-scrollbar {
+/*::-webkit-scrollbar {
   -webkit-appearance: none;
   width: 10px;
   background-color: darkgrey;
@@ -94,7 +94,7 @@ grid-row-gap: 0;
 
 ::-webkit-scrollbar-corner {
   background-color: darkgrey;
-}
+} */
 
 .navbar{
     width: 300px;

@@ -386,12 +386,48 @@ class App extends Component {
     const newZoom = parseInt(zoom);
     const currentZoom = this.state.zoom;
     //const canvas = this.canvas;
+
+    //We want the center of the few to stay the sample
+    var x =  -(newZoom/currentZoom - 1)*canvasWidth/2 + newZoom/currentZoom*this.state.x;
+    var y =  -(newZoom/currentZoom - 1)*canvasHeight/2 + newZoom/currentZoom*this.state.y;
     // We need to know the current postions of the scroll bars for proper centering
-    const scrollY = Math.floor(this.state.scrollY*currentZoom/newZoom);
-    const scrollX = Math.floor(this.state.scrollX*currentZoom/newZoom);
-    this.setState(prevState => ({zoom: newZoom, scrollX: 0, scrollY: 0,
-                                 scrollBarWidth: Math.floor(100*canvasWidth/newZoom),
-                                 scrollBarLength: Math.floor(100*canvasHeight/newZoom)}));
+
+    const currentBarHeight = this.state.scrollBarLength;
+    const currentAvailableHeight = canvasHeight - padding * 2 - currentBarHeight;
+    const newBarHeight = Math.floor(100*canvasHeight/newZoom);
+    const newAvailableHeight = canvasHeight - padding * 2 - newBarHeight;
+    var deltaY = 0;
+    if (currentAvailableHeight === 0) {
+      deltaY = 0.5;
+    }
+    else {
+      deltaY  = (this.state.scrollY - padding) / currentAvailableHeight;
+    }
+    if (newAvailableHeight <= 0) {
+      y = 0;
+    }
+
+    const currentBarWidth = this.state.scrollBarWidth;
+    const currentAvailableWidth = canvasWidth - padding * 2 - currentBarWidth;
+    const newBarWidth = Math.floor(100*canvasWidth/newZoom);
+    const newAvailableWidth = canvasWidth - padding * 2 - newBarWidth;
+    var deltaX = 0;
+    if (currentAvailableWidth === 0) {
+      deltaX = 0.5;
+    }
+    else {
+      deltaX  = (this.state.scrollX - padding) / currentAvailableWidth;
+    }
+    if (newAvailableWidth <= 0) {
+      x = 0;
+    }
+
+    const scrollY = Math.floor(deltaY*newAvailableHeight + padding);
+    const scrollX = Math.floor(deltaX*newAvailableWidth + padding);
+    this.setState(prevState => ({zoom: newZoom, scrollX: scrollX, scrollY: scrollY,
+                                 scrollBarWidth: newBarWidth,
+                                 scrollBarLength: newBarHeight,
+                                 x: x, y: y}));
     //relative position of the beginning of the thumb, adjusted by half the thumbsize
 
   }
@@ -479,7 +515,9 @@ componentDidMount() {
             </Layer>
 
             <Layer>
-              <Rect width={10} height={this.state.scrollBarLength} fill={"blue"} opacity={0.3} x={canvasWidth-padding-10}
+              <Rect width={10} height={this.state.scrollBarLength} fill={"blue"}
+                    opacity={0.3} cornerRadius={padding/2}
+                    x={canvasWidth-padding-10}
                     y={this.state.scrollY} draggable={true} dragBoundFunc={function (pos) {
                         pos.x = canvasWidth - padding - 10;
                         pos.y = Math.max(Math.min(pos.y, canvasHeight - this.height() - padding), padding);
