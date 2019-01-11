@@ -10,7 +10,7 @@ import './index.css';
 
 
 
-import App from './App';
+import App from './Appfabric';
 import * as serviceWorker from './serviceWorker';
 
 if (module.hot) {
