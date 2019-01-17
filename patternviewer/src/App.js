@@ -5,7 +5,7 @@ import {fabric} from 'fabric';
 import {Button} from 'react-bootstrap';
 import { Stage, Layer, Rect, Text, Line } from 'react-konva';
 import { Image as Kimage } from 'react-konva';
-import Konva from 'konva';
+//import Konva from 'konva';
 
 import './App.css';
 
@@ -58,7 +58,7 @@ class App extends Component {
                    intensity: 0,
                    image: null,
                    scrollX: padding,
-                   scrollY: padding,
+                   scrollY: 0,
                    y: 0,
                    x: 0,
                    scrollBarLength: canvasHeight,
@@ -69,8 +69,8 @@ class App extends Component {
                   };
 
      this.createImg = this.createImg.bind(this);
-     this.LoadData = this.LoadData.bind(this);
      this.transformData = this.transformData.bind(this);
+
      this.zoomSelect = this.zoomSelect.bind(this);
      this.addPolygonStart = this.addPolygonStart.bind(this);
      this.canvasMouseMove = this.canvasMouseMove.bind(this);
@@ -78,8 +78,6 @@ class App extends Component {
      this.canvasDblClick = this.canvasDblClick.bind(this);
      this.requestData = this.requestData.bind(this);
      this.editPolygon = this.editPolygon.bind(this);
-     this.activateCanvasObject = this.activateCanvasObject.bind(this);
-     this.moveCanvasObject = this.moveCanvasObject.bind(this);
      this.polygonPointMoved = this.polygonPointMoved.bind(this);
      this.leaveEditingPolygon = this.leaveEditingPolygon.bind(this);
      this.verticalScroll = this.verticalScroll.bind(this);
@@ -90,7 +88,7 @@ class App extends Component {
 
   //Data relatefunctions
   requestData() {
-
+    console.log("request data")
     socket.on('data2d', (data2d) => {
 
       this.setState(prevState => ({
@@ -105,25 +103,7 @@ class App extends Component {
     socket.emit('data2d');
   }
 
-  LoadData(img) {
 
-    const width = img.clientWidth;
-    const height = img.clientHeight;
-    const canvasin = this.refs.inputcanvas
-    const ctx = canvasin.getContext("2d")
-    ctx.drawImage(img,0,0, width,height, 0,0, width,height);
-    const imgData = ctx.getImageData(0, 0, canvasin.width, canvasin.height);
-    const imgWidth = imgData.width;
-    const imgHeight = imgData.height;
-    var bwdata = []
-    for (let i = 0; i < imgData.data.length; i += 4) {
-      bwdata[i/4] =   (imgData.data[i]+imgData.data[i+1]+imgData.data[i+2])/3;
-    }
-    if (imgWidth*imgHeight > 0) {
-        const newImg = this.transformData(bwdata, imgWidth, imgHeight);
-        this.createImg(newImg);
-    }
-  }
 
   transformData(bwdata, width, height){
     var canvasin=this.refs.inputcanvas;
@@ -152,20 +132,13 @@ class App extends Component {
   }
 
   createImg(img)  {
-
-
-       const scalingFactorW = (canvasWidth-scrollBarSize)/img.width
-       const scalingFactorH = (canvasHeight-scrollBarSize)/img.height
-       const scalingFactor = 0.98*Math.min(scalingFactorW,scalingFactorH)
-
-       const offsetX = Math.floor(canvasWidth - img.width*scalingFactor)/2 - scrollBarSize;
-       const offsetY = Math.max(0,((canvasHeight - img.height*scalingFactor)/2 - scrollBarSize));
-
-
-       img.width = img.width*scalingFactor;
-       img.height = img.height*scalingFactor;
-
-
+   const scalingFactorW = (canvasWidth-scrollBarSize)/img.width
+   const scalingFactorH = (canvasHeight-scrollBarSize)/img.height
+   const scalingFactor = 0.98*Math.min(scalingFactorW,scalingFactorH)
+   const offsetX = Math.floor(canvasWidth - img.width*scalingFactor)/2 - scrollBarSize;
+   const offsetY = Math.max(0,((canvasHeight - img.height*scalingFactor)/2 - scrollBarSize));
+   img.width = img.width*scalingFactor;
+   img.height = img.height*scalingFactor;
 
     this.setState(prevState => ({
       image: img,
@@ -179,15 +152,10 @@ class App extends Component {
 
   //Canvas actions
 
-  verticalScroll(e) {
-    const barHeight = this.state.scrollBarLength;
-
-    const availableHeight = canvasHeight - padding * 2 - barHeight;
-    if (availableHeight > 0) {
-      var delta = (e.target._lastPos.y - padding) / availableHeight;
+  verticalScroll(delta) {
       const y = -canvasHeight * delta * this.state.zoom/100;
-      this.setState(prevState => ({scrollY: e.target._lastPos.y, y: y}))
-    }
+      this.setState(prevState => ({scrollY: delta, y: y}))
+
   }
 
   horizontalScroll(e) {
@@ -200,26 +168,6 @@ class App extends Component {
     }
   }
 
-  activateCanvasObject(target) {
-    try {
-        target.selected[0].selectedDo();
-    }
-    catch(err) {
-      //It is quite probale that shiftSelectDo is not defined ;)
-      console.log(err);
-    }
-  }
-
-
-  moveCanvasObject(target) {
-    try {
-      //console.log(target.target)//.selected[0])
-      target.target.moveDo();
-    }
-    catch(err) {
-      console.log(err);
-    }
-  }
 
   canvasMouseMove(event) {
 
@@ -308,8 +256,7 @@ class App extends Component {
 
 
   editPolygon(id) {
-    //TODO: check if any other Poly is in editing mode and leave
-    //how do we leave editing mode???
+    //TODO: reimplement for KONVA
     console.log("Edit poly");
     const polygon = this.state.MaskObjects[id];
 
@@ -340,6 +287,7 @@ class App extends Component {
   }
 
   polygonPointMoved(id, pointnr, circle) {
+      //TODO: reimplement for Konva
       console.log(pointnr);
       const objects = this.state.MaskObjects;
       const polygon = objects[id];
@@ -368,6 +316,7 @@ class App extends Component {
    }
 
    leaveEditingPolygon(id) {
+     //TODO: reimplement for Konva
      //first, we rmove any circle object
      const canvas = this.canvas;
      canvas.forEachObject(function(obj){
@@ -401,7 +350,7 @@ class App extends Component {
       deltaY = 0.5;
     }
     else {
-      deltaY  = (this.state.scrollY - padding) / currentAvailableHeight;
+      deltaY  = (this.state.scrollY);
     }
     if (newAvailableHeight <= 0) {
       y = 0;
@@ -424,7 +373,7 @@ class App extends Component {
 
     const scrollY = Math.floor(deltaY*newAvailableHeight + padding);
     const scrollX = Math.floor(deltaX*newAvailableWidth + padding);
-    this.setState(prevState => ({zoom: newZoom, scrollX: scrollX, scrollY: scrollY,
+    this.setState(prevState => ({zoom: newZoom, scrollX: scrollX, scrollY: deltaY,
                                  scrollBarWidth: newBarWidth,
                                  scrollBarLength: newBarHeight,
                                  x: x, y: y}));
@@ -459,11 +408,14 @@ componentDidMount() {
     }
 
     let imageWidth
+    let imageHeight
     if (this.state.image) {
        imageWidth = this.state.image.width;
+       imageHeight = this.state.image.height;
     }
     else {
       imageWidth = canvasWidth;
+      imageHeight = canvasHeight;
     }
     return (
       <div className="App">
@@ -514,21 +466,15 @@ componentDidMount() {
 
             </Layer>
 
-            <Layer>
-              <Rect width={10} height={this.state.scrollBarLength} fill={"blue"}
-                    opacity={0.3} cornerRadius={padding/2}
-                    x={canvasWidth-padding-10}
-                    y={this.state.scrollY} draggable={true} dragBoundFunc={function (pos) {
-                        pos.x = canvasWidth - padding - 10;
-                        pos.y = Math.max(Math.min(pos.y, canvasHeight - this.height() - padding), padding);
-                        return pos;}}
-                        onDragMove={this.verticalScroll}/>
-              <Rect width={this.state.scrollBarWidth} height={10} fill={"blue"} opacity={0.3} x={this.state.scollX}
-                    y={canvasHeight-padding-10} draggable={true} dragBoundFunc={function (pos) {
-                        pos.x = Math.max(Math.min(pos.x, canvasWidth - this.width() - padding), padding);
-                        pos.y = canvasHeight - padding - 10;
-                        return pos;}}
-                        onDragMove={this.horizontalScroll}/>
+
+              <VerticalScrollBar height={canvasHeight-10}
+                                 objectHeight={Math.floor(imageHeight*this.state.zoom/100)}
+                                 y={this.state.scrollY}
+                                 onChange={this.verticalScroll}/>
+              <Layer>
+              <HorizontalScrollBar width={this.state.scrollBarWidth}
+                                   x={this.state.scollX}
+                                   onDragMove={this.horizontalScroll}/>
             </Layer>
 
 
@@ -544,7 +490,67 @@ componentDidMount() {
   }
 }
 
+class HorizontalScrollBar extends Component {
+  render() {
+    return (
+    <Rect width={this.props.width} height={10} fill={"blue"} opacity={0.3} x={this.props.x}
+          y={canvasHeight-padding-10} draggable={true} dragBoundFunc={function (pos) {
+              pos.x = Math.max(Math.min(pos.x, canvasWidth - this.width() - padding), padding);
+              pos.y = canvasHeight - padding - 10;
+              return pos;}}
+              onDragMove={this.props.onDragMove}/>
+    )
+  }
+}
 
+class VerticalScrollBar extends Component {
+
+  constructor(props){
+    super(props);
+    this.abspos = this.abspos.bind(this);
+    this.verticalScroll = this.verticalScroll.bind(this);
+  }
+
+  abspos(relpos) {
+    const barHeight = this.props.height*this.props.height/this.props.objectHeight
+      const availableHeight = this.props.height - padding * 2 - barHeight;
+      return relpos*availableHeight + padding;
+  }
+
+  verticalScroll(e) {
+    //const barHeight = this.state.scrollBarLength;
+    const barHeight = this.props.height*this.props.height/this.props.objectHeight
+    const availableHeight = this.props.height- padding * 2 - barHeight;
+    if (availableHeight > 0) {
+      var delta = (e.target._lastPos.y - padding) / availableHeight;
+       this.props.onChange(delta);
+     }
+  }
+
+
+
+  render() {
+    return (
+      <Layer>
+      <Rect width={10} height={this.props.height} fill={"white"}
+            opacity={0.9}
+            x={canvasWidth-padding-10}
+            y={padding} draggable={false} />
+      {  this.props.height < this.props.objectHeight &&
+        (<Rect width={10} height={this.props.height*this.props.height/this.props.objectHeight} fill={"blue"}
+            opacity={0.3}
+            x={canvasWidth-padding-10}
+            y={this.abspos(this.props.y)} draggable={true} dragBoundFunc={function (pos) {
+                pos.x = canvasWidth - padding - 10;
+                pos.y = Math.max(Math.min(pos.y, canvasHeight - this.height() - padding), padding);
+                return pos;}}
+                onDragMove={this.verticalScroll}/>)
+            }
+
+    </Layer>
+    )
+  }
+}
 
 
 

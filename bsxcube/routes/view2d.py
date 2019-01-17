@@ -28,6 +28,7 @@ if testImage == "water":
 else:
     testimage = Image.open("caman.tif")
     data2D = np.array(testimage, dtype=int)
+    
 
 print(data2D)
 
