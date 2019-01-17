@@ -503,54 +503,34 @@ class HorizontalScrollBar extends Component {
   }
 }
 
-class VerticalScrollBar extends Component {
-
-  constructor(props){
-    super(props);
-    this.abspos = this.abspos.bind(this);
-    this.verticalScroll = this.verticalScroll.bind(this);
-  }
-
-  abspos(relpos) {
-    const barHeight = this.props.height*this.props.height/this.props.objectHeight
-      const availableHeight = this.props.height - padding * 2 - barHeight;
-      return relpos*availableHeight + padding;
-  }
-
-  verticalScroll(e) {
-    //const barHeight = this.state.scrollBarLength;
-    const barHeight = this.props.height*this.props.height/this.props.objectHeight
-    const availableHeight = this.props.height- padding * 2 - barHeight;
-    if (availableHeight > 0) {
-      var delta = (e.target._lastPos.y - padding) / availableHeight;
-       this.props.onChange(delta);
-     }
-  }
 
 
 
-  render() {
-    return (
+
+const VerticalScrollBar = ({height,objectHeight,y, onChange}) =>
       <Layer>
-      <Rect width={10} height={this.props.height} fill={"white"}
+      <Rect width={10} height={height} fill={"white"}
             opacity={0.9}
             x={canvasWidth-padding-10}
             y={padding} draggable={false} />
-      {  this.props.height < this.props.objectHeight &&
-        (<Rect width={10} height={this.props.height*this.props.height/this.props.objectHeight} fill={"blue"}
+      {  height < objectHeight &&
+        (<Rect width={10} height={height*height/objectHeight} fill={"blue"}
             opacity={0.3}
             x={canvasWidth-padding-10}
-            y={this.abspos(this.props.y)} draggable={true} dragBoundFunc={function (pos) {
+            y={y*(height - padding * 2 - height*height/objectHeight)+ padding} draggable={true} dragBoundFunc={function (pos) {
                 pos.x = canvasWidth - padding - 10;
                 pos.y = Math.max(Math.min(pos.y, canvasHeight - this.height() - padding), padding);
                 return pos;}}
-                onDragMove={this.verticalScroll}/>)
+                onDragMove={(e) => {
+                const barHeight = height*height/objectHeight
+                const availableHeight = height- padding * 2 - barHeight;
+                if (availableHeight > 0) {
+                  var delta = (e.target._lastPos.y - padding) / availableHeight;
+                  onChange(delta);}
+                }}/>)
             }
+      </Layer>
 
-    </Layer>
-    )
-  }
-}
 
 
 
