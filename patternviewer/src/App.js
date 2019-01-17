@@ -505,8 +505,6 @@ class HorizontalScrollBar extends Component {
 
 
 
-
-
 const VerticalScrollBar = ({height,objectHeight,y, onChange}) =>
       <Layer>
       <Rect width={10} height={height} fill={"white"}
@@ -517,11 +515,13 @@ const VerticalScrollBar = ({height,objectHeight,y, onChange}) =>
         (<Rect width={10} height={height*height/objectHeight} fill={"blue"}
             opacity={0.3}
             x={canvasWidth-padding-10}
-            y={y*(height - padding * 2 - height*height/objectHeight)+ padding} draggable={true} dragBoundFunc={function (pos) {
+            y={y*(height - padding * 2 - height*height/objectHeight)+ padding}
+            draggable={true}
+            dragBoundFunc={function (pos) {
                 pos.x = canvasWidth - padding - 10;
-                pos.y = Math.max(Math.min(pos.y, canvasHeight - this.height() - padding), padding);
+                pos.y = Math.max(Math.min(pos.y, canvasHeight - height*height/objectHeight - padding-10), padding);
                 return pos;}}
-                onDragMove={(e) => {
+            onDragMove={(e) => {
                 const barHeight = height*height/objectHeight
                 const availableHeight = height- padding * 2 - barHeight;
                 if (availableHeight > 0) {
