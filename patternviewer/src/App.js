@@ -1,9 +1,8 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import {fabric} from 'fabric';
 import {Button} from 'react-bootstrap';
-import { Stage, Layer, Rect, Text, Line } from 'react-konva';
+import { Stage, Layer, Rect, Line, Group, Circle} from 'react-konva';
 import { Image as Kimage } from 'react-konva';
 //import Konva from 'konva';
 
@@ -78,8 +77,7 @@ class App extends Component {
      this.canvasDblClick = this.canvasDblClick.bind(this);
      this.requestData = this.requestData.bind(this);
      this.editPolygon = this.editPolygon.bind(this);
-     this.polygonPointMoved = this.polygonPointMoved.bind(this);
-     this.leaveEditingPolygon = this.leaveEditingPolygon.bind(this);
+
      this.verticalScroll = this.verticalScroll.bind(this);
      this.horizontalScroll = this.horizontalScroll.bind(this);
   }
@@ -226,8 +224,8 @@ class App extends Component {
            //newObject.pop();
            const polyPoints = [];
            for (let p of newObject) {
-             polyPoints.push(p.x);
-             polyPoints.push(p.y);
+             polyPoints.push(p);
+             //polyPoints.push(p.y);
            }
            const polygon = {type: "Polygon", points: polyPoints}
            this.setState(prevState => ({
@@ -248,81 +246,21 @@ class App extends Component {
 
   //Canvas object actions
 
-
-
-  editPolygon(id) {
-    //TODO: reimplement for KONVA
-    console.log("Edit poly");
-    const polygon = this.state.MaskObjects[id];
-
-    const points = polygon.points;
-      for (let pointnr in points) {
-        let point = points[pointnr];
-        console.log(point);
-        let circle = new fabric.Circle({
-          radius: Math.max(2/this.canvas.getZoom(), 0.5),
-          fill: 'white',
-          left: point.x,
-          top: point.y,
-          originX: 'center',
-          originY: 'center',
-          hasBorders: false,
-          hasControls: false,
-
-        });
-
-      //to implement: when a circle is dragged, the polygon and all other cirlces are deselcted, the other cirlces disappear
-      //to implement: when a circle is no longer dragged, we return to the prvious state
-      circle.moveDo = () => this.polygonPointMoved(id,pointnr,circle);
-      this.canvas.add(circle);
-    }
-    this.canvas.renderAll();
-    console.log(polygon);
-    return true;
+  editPolygon(points,id) {
+    const maskObjects = this.state.MaskObjects;
+    //const polygon = maskObjects[id];
+    maskObjects[id].points = points;
+    this.setState(prevState => ({Maskobjects: maskObjects}));
   }
 
-  polygonPointMoved(id, pointnr, circle) {
-      //TODO: reimplement for Konva
-      console.log(pointnr);
-      const objects = this.state.MaskObjects;
-      const polygon = objects[id];
-      const points = polygon.points;
-      console.log(points);
-      points[pointnr] = circle.getCenterPoint();
-      console.log(points);
-      const updatedPolygon = new fabric.Polygon(points, {
-           //left: 0,
-           //top: 0,
-           fill: 'purple',
-           selectable: true,
-           objectCaching: false,
-           objectCaching: false,
-           lockMovementX: true,
-           lockMovementY: true,
-        });
-      updatedPolygon.selectedDo = () => this.editPolygon(id);
-      objects[id] = updatedPolygon;
-      this.setState({MaskObjects: objects});
-  }
+
 
  //Canvas state functions
    addPolygonStart() {
-       this.setState({drawing: "polygon"});
+       this.setState(prevState => ({drawing: "polygon"}));
    }
 
-   leaveEditingPolygon(id) {
-     //TODO: reimplement for Konva
-     //first, we rmove any circle object
-     const canvas = this.canvas;
-     canvas.forEachObject(function(obj){
-       if(obj.type === 'circle'){
-                canvas.remove(obj);
-            }
-        });
-        const polygon = this.state.MaskObjects[id];
-        polygon.lockMovementX = false;
-        polygon.lockMovementY = false;
-   }
+
 
   zoomSelect(event, zoom) {
     //in the functions call from the zoom selector, zoom is e.target.value and
@@ -452,12 +390,12 @@ componentDidMount() {
                        stroke={"white"}
                        strokeWidth={100/this.state.zoom}/>)}
                {polygons.map(line =>
-                  <Line points={line.points}
-                        closed={true}
-                        fill={'rgba(255, 255, 255, 0.3)'}
-                        onMouseMove={this.canvasMouseMove}/>)}
-
-            </Layer>
+                  <Polygon points={line.points}
+                           pointSize={200/this.state.zoom}
+                           onMouseMove={this.canvasMouseMove}
+                           onChange={points => this.editPolygon(points,line.id)}/>)
+                }
+              </Layer>
 
 
               <VerticalScrollBar height={canvasHeight-10}
@@ -482,6 +420,25 @@ componentDidMount() {
     );
   }
 }
+
+
+const Polygon = ({points,pointSize, onMouseMove, onChange}) =>
+     <Group>
+     <Line points={points.flatMap(point => [point.x,point.y])}
+           closed={true}
+           fill={'rgba(255, 255, 255, 0.3)'}
+           onMouseMove={onMouseMove}/>
+      {points.map((point,index) =>
+       <Circle x={point.x} y = {point.y} radius={pointSize} fill={"white"}
+               draggable={true}
+               onDragMove={(e) => {
+                 const newPoints = points;
+                 const newX = (e.target._lastPos.x);
+                 const newY = (e.target._lastPos.y);
+                 newPoints[index] = {x: newX, y: newY}
+                 onChange(newPoints);}}/>)}
+      </Group>
+
 
 
 const HorizontalScrollBar = ({width,objectWidth, x, onChange}) =>
