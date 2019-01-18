@@ -57,7 +57,7 @@ class App extends Component {
                    posY: 0,
                    intensity: 0,
                    image: null,
-                   scrollX: padding,
+                   scrollX: 0,
                    scrollY: 0,
                    y: 0,
                    x: 0,
@@ -158,14 +158,9 @@ class App extends Component {
 
   }
 
-  horizontalScroll(e) {
-    const barWidth = this.state.scrollBarWidth;
-    const availableWidth = canvasWidth - padding * 2 - barWidth;
-    if (availableWidth > 0) {
-      var delta = (e.target._lastPos.x - padding) / availableWidth;
+  horizontalScroll(delta) {
       const x = -canvasWidth * delta * this.state.zoom/100;
-      this.setState(prevState => ({scrollX: e.target._lastPos.x, x: x}))
-    }
+      this.setState(prevState => ({scrollX: delta, x: x}))
   }
 
 
@@ -365,19 +360,17 @@ class App extends Component {
       deltaX = 0.5;
     }
     else {
-      deltaX  = (this.state.scrollX - padding) / currentAvailableWidth;
+      deltaX  = this.state.scrollX;
     }
     if (newAvailableWidth <= 0) {
       x = 0;
     }
 
-    const scrollY = Math.floor(deltaY*newAvailableHeight + padding);
-    const scrollX = Math.floor(deltaX*newAvailableWidth + padding);
-    this.setState(prevState => ({zoom: newZoom, scrollX: scrollX, scrollY: deltaY,
+    this.setState(prevState => ({zoom: newZoom, scrollX: deltaX, scrollY: deltaY,
                                  scrollBarWidth: newBarWidth,
                                  scrollBarLength: newBarHeight,
                                  x: x, y: y}));
-    //relative position of the beginning of the thumb, adjusted by half the thumbsize
+
 
   }
 
@@ -471,11 +464,11 @@ componentDidMount() {
                                  objectHeight={Math.floor(imageHeight*this.state.zoom/100)}
                                  y={this.state.scrollY}
                                  onChange={this.verticalScroll}/>
-              <Layer>
-              <HorizontalScrollBar width={this.state.scrollBarWidth}
-                                   x={this.state.scollX}
-                                   onDragMove={this.horizontalScroll}/>
-            </Layer>
+
+              <HorizontalScrollBar width={canvasWidth-10}
+                                   objectWidth={Math.floor(imageWidth*this.state.zoom/100)}
+                                   x={this.state.scrollX}
+                                   onChange={this.horizontalScroll}/>
 
 
           </Stage>
@@ -490,23 +483,36 @@ componentDidMount() {
   }
 }
 
-class HorizontalScrollBar extends Component {
-  render() {
-    return (
-    <Rect width={this.props.width} height={10} fill={"blue"} opacity={0.3} x={this.props.x}
-          y={canvasHeight-padding-10} draggable={true} dragBoundFunc={function (pos) {
-              pos.x = Math.max(Math.min(pos.x, canvasWidth - this.width() - padding), padding);
-              pos.y = canvasHeight - padding - 10;
-              return pos;}}
-              onDragMove={this.props.onDragMove}/>
-    )
-  }
-}
+
+const HorizontalScrollBar = ({width,objectWidth, x, onChange}) =>
+      <Layer x={0} y={0}>
+      <Rect width={width} height={10} fill={"white"}
+            opacity={0.9}
+            x={padding}
+            y={canvasHeight-padding-10} draggable={false} />
+      {  width < objectWidth &&
+        (<Rect width={width*width/objectWidth} height={10} fill={"blue"}
+            opacity={0.3}
+            x={x*(width - width*width/objectWidth)+ padding}
+            y={canvasHeight-padding-10}
+            draggable={true}
+            dragBoundFunc={function (pos) {
+                pos.x = Math.max(Math.min(pos.x, width - width*width/objectWidth), padding);
+                pos.y = canvasHeight - padding - 10; return pos;}}
+            onDragMove={(e) => {
+                const barWidth = width*width/objectWidth
+                const availableWidth= width - padding * 2 - barWidth;
+                if (availableWidth > 0) {
+                  var delta = (e.target._lastPos.x) / availableWidth;
+                  onChange(delta);}
+                }}/>)
+            }
+      </Layer>
 
 
 
 const VerticalScrollBar = ({height,objectHeight,y, onChange}) =>
-      <Layer>
+      <Layer x={0} y={0}>
       <Rect width={10} height={height} fill={"white"}
             opacity={0.9}
             x={canvasWidth-padding-10}
@@ -515,17 +521,17 @@ const VerticalScrollBar = ({height,objectHeight,y, onChange}) =>
         (<Rect width={10} height={height*height/objectHeight} fill={"blue"}
             opacity={0.3}
             x={canvasWidth-padding-10}
-            y={y*(height - padding * 2 - height*height/objectHeight)+ padding}
+            y={y*(height - height*height/objectHeight)+ padding}
             draggable={true}
             dragBoundFunc={function (pos) {
                 pos.x = canvasWidth - padding - 10;
-                pos.y = Math.max(Math.min(pos.y, canvasHeight - height*height/objectHeight - padding-10), padding);
+                pos.y = Math.max(Math.min(pos.y, height - height*height/objectHeight), padding);
                 return pos;}}
             onDragMove={(e) => {
                 const barHeight = height*height/objectHeight
                 const availableHeight = height- padding * 2 - barHeight;
                 if (availableHeight > 0) {
-                  var delta = (e.target._lastPos.y - padding) / availableHeight;
+                  var delta = (e.target._lastPos.y) / availableHeight;
                   onChange(delta);}
                 }}/>)
             }
