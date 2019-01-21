@@ -4,7 +4,6 @@ import classNames from 'classnames';
 import {Button} from 'react-bootstrap';
 import { Stage, Layer, Rect, Line, Group, Circle} from 'react-konva';
 import { Image as Kimage } from 'react-konva';
-//import Konva from 'konva';
 
 import './App.css';
 
@@ -29,7 +28,7 @@ const color = (bw,cg) => (bw < 0)
 
 
 const padding = 0;
-const scrollBarSize = 10;
+const scrollBarWidth = 10;
 const canvasHeight = 330;
 const canvasWidth = 560;
 
@@ -130,11 +129,11 @@ class App extends Component {
   }
 
   createImg(img)  {
-   const scalingFactorW = (canvasWidth-scrollBarSize)/img.width
-   const scalingFactorH = (canvasHeight-scrollBarSize)/img.height
-   const scalingFactor = 0.98*Math.min(scalingFactorW,scalingFactorH)
-   const offsetX = Math.floor(canvasWidth - img.width*scalingFactor)/2 - scrollBarSize;
-   const offsetY = Math.max(0,((canvasHeight - img.height*scalingFactor)/2 - scrollBarSize));
+   const scalingFactorW = (canvasWidth-scrollBarWidth)/img.width
+   const scalingFactorH = (canvasHeight-scrollBarWidth)/img.height
+   const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
+   const offsetX = Math.floor(canvasWidth - img.width*scalingFactor)/2 - scrollBarWidth;
+   const offsetY = Math.max(0,((canvasHeight - img.height*scalingFactor)/2 - scrollBarWidth));
    img.width = img.width*scalingFactor;
    img.height = img.height*scalingFactor;
 
@@ -265,48 +264,44 @@ class App extends Component {
   zoomSelect(event, zoom) {
     //in the functions call from the zoom selector, zoom is e.target.value and
     //as o7 07/01/2019 a string!
+    if (!this.state.image) {
+      this.setState(prevState => ({zoom: 100}));
+      return;
+    }
     const newZoom = parseInt(zoom);
     const currentZoom = this.state.zoom;
-    //const canvas = this.canvas;
 
-    //We want the center of the few to stay the sample
+    //We want the center of the view to stay the same
     var x =  -(newZoom/currentZoom - 1)*canvasWidth/2 + newZoom/currentZoom*this.state.x;
     var y =  -(newZoom/currentZoom - 1)*canvasHeight/2 + newZoom/currentZoom*this.state.y;
-    // We need to know the current postions of the scroll bars for proper centering
 
-    const currentBarHeight = this.state.scrollBarLength;
-    const currentAvailableHeight = canvasHeight - padding * 2 - currentBarHeight;
-    const newBarHeight = Math.floor(100*canvasHeight/newZoom);
-    const newAvailableHeight = canvasHeight - padding * 2 - newBarHeight;
     var deltaY = 0;
-    if (currentAvailableHeight === 0) {
+    if (canvasHeight > this.state.image.height*currentZoom/100 &&
+        canvasHeight < this.state.image.height*newZoom/100) {
       deltaY = 0.5;
+    }
+    else if (canvasHeight > this.state.image.height*newZoom/100) {
+      y = 0;
+      deltaY = 0;
     }
     else {
       deltaY  = (this.state.scrollY);
     }
-    if (newAvailableHeight <= 0) {
-      y = 0;
-    }
 
-    const currentBarWidth = this.state.scrollBarWidth;
-    const currentAvailableWidth = canvasWidth - padding * 2 - currentBarWidth;
-    const newBarWidth = Math.floor(100*canvasWidth/newZoom);
-    const newAvailableWidth = canvasWidth - padding * 2 - newBarWidth;
     var deltaX = 0;
-    if (currentAvailableWidth === 0) {
+    if (canvasWidth > this.state.image.width*currentZoom/100 &&
+        canvasWidth < this.state.image.width*newZoom/100) {
       deltaX = 0.5;
     }
-    else {
-      deltaX  = this.state.scrollX;
-    }
-    if (newAvailableWidth <= 0) {
+    else if (canvasWidth > this.state.image.width*newZoom/100) {
       x = 0;
+      deltaX = 0;
+    }
+    else {
+      deltaX  = (this.state.scrollX);
     }
 
     this.setState(prevState => ({zoom: newZoom, scrollX: deltaX, scrollY: deltaY,
-                                 scrollBarWidth: newBarWidth,
-                                 scrollBarLength: newBarHeight,
                                  x: x, y: y}));
 
 
@@ -375,16 +370,15 @@ componentDidMount() {
                    x={this.state.x}
                    >
 
-                   <Kimage
-                       image={this.state.image}
-                        y={this.state.imageOffsetY}
-                        x={this.state.imageOffsetX}
+               <Kimage
+                   image={this.state.image}
+                    y={this.state.imageOffsetY}
+                    x={this.state.imageOffsetX}
 
-                       width={imageWidth}
-                       onMouseMove={this.canvasMouseMove}
-                       onClick={this.canvasClick}
-
-                     />
+                   width={imageWidth}
+                   onMouseMove={this.canvasMouseMove}
+                   onClick={this.canvasClick}
+                 />
               {lines.map(line =>
                  <Line points={line}
                        stroke={"white"}
@@ -393,19 +387,24 @@ componentDidMount() {
                   <Polygon points={line.points}
                            pointSize={200/this.state.zoom}
                            onMouseMove={this.canvasMouseMove}
-                           onChange={points => this.editPolygon(points,line.id)}/>)
-                }
+                           onChange={points => this.editPolygon(points,line.id)}/>)}
               </Layer>
 
 
-              <VerticalScrollBar height={canvasHeight-10}
+              <VerticalScrollBar height={canvasHeight-2*padding-scrollBarWidth}
                                  objectHeight={Math.floor(imageHeight*this.state.zoom/100)}
-                                 y={this.state.scrollY}
+                                 scrollY={this.state.scrollY}
+                                 x={canvasWidth-padding-scrollBarWidth}
+                                 y={padding}
+                                 barWidth={scrollBarWidth}
                                  onChange={this.verticalScroll}/>
 
-              <HorizontalScrollBar width={canvasWidth-10}
+              <HorizontalScrollBar width={canvasWidth-2*padding-scrollBarWidth}
                                    objectWidth={Math.floor(imageWidth*this.state.zoom/100)}
-                                   x={this.state.scrollX}
+                                   scrollX={this.state.scrollX}
+                                   x={padding}
+                                   y={canvasHeight-padding-scrollBarWidth}
+                                   barHeight={scrollBarWidth}
                                    onChange={this.horizontalScroll}/>
 
 
@@ -441,24 +440,24 @@ const Polygon = ({points,pointSize, onMouseMove, onChange}) =>
 
 
 
-const HorizontalScrollBar = ({width,objectWidth, x, onChange}) =>
+const HorizontalScrollBar = ({width,objectWidth, x,y, scrollX, barHeight, onChange}) =>
       <Layer x={0} y={0}>
-      <Rect width={width} height={10} fill={"white"}
+      <Rect width={width} height={barHeight} fill={"white"}
             opacity={0.9}
-            x={padding}
-            y={canvasHeight-padding-10} draggable={false} />
+            x={x}
+            y={y} draggable={false} />
       {  width < objectWidth &&
-        (<Rect width={width*width/objectWidth} height={10} fill={"blue"}
+        (<Rect width={width*width/objectWidth} height={barHeight} fill={"blue"}
             opacity={0.3}
-            x={x*(width - width*width/objectWidth)+ padding}
-            y={canvasHeight-padding-10}
+            x={scrollX*(width - width*width/objectWidth)+ x}
+            y={y}
             draggable={true}
             dragBoundFunc={function (pos) {
-                pos.x = Math.max(Math.min(pos.x, width - width*width/objectWidth), padding);
-                pos.y = canvasHeight - padding - 10; return pos;}}
+                pos.x = Math.max(Math.min(pos.x, width - width*width/objectWidth), x);
+                pos.y = y; return pos;}}
             onDragMove={(e) => {
                 const barWidth = width*width/objectWidth
-                const availableWidth= width - padding * 2 - barWidth;
+                const availableWidth= width - barWidth;
                 if (availableWidth > 0) {
                   var delta = (e.target._lastPos.x) / availableWidth;
                   onChange(delta);}
@@ -468,25 +467,25 @@ const HorizontalScrollBar = ({width,objectWidth, x, onChange}) =>
 
 
 
-const VerticalScrollBar = ({height,objectHeight,y, onChange}) =>
+const VerticalScrollBar = ({height,objectHeight, x,y,scrollY, barWidth, onChange}) =>
       <Layer x={0} y={0}>
-      <Rect width={10} height={height} fill={"white"}
+      <Rect width={barWidth} height={height} fill={"white"}
             opacity={0.9}
-            x={canvasWidth-padding-10}
-            y={padding} draggable={false} />
+            x={x}
+            y={y} draggable={false} />
       {  height < objectHeight &&
-        (<Rect width={10} height={height*height/objectHeight} fill={"blue"}
+        (<Rect width={barWidth} height={height*height/objectHeight} fill={"blue"}
             opacity={0.3}
-            x={canvasWidth-padding-10}
-            y={y*(height - height*height/objectHeight)+ padding}
+            x={x}
+            y={scrollY*(height - height*height/objectHeight)+y}
             draggable={true}
             dragBoundFunc={function (pos) {
-                pos.x = canvasWidth - padding - 10;
-                pos.y = Math.max(Math.min(pos.y, height - height*height/objectHeight), padding);
+                pos.x = x;
+                pos.y = Math.max(Math.min(pos.y, height - height*height/objectHeight), y);
                 return pos;}}
             onDragMove={(e) => {
                 const barHeight = height*height/objectHeight
-                const availableHeight = height- padding * 2 - barHeight;
+                const availableHeight = height - barHeight;
                 if (availableHeight > 0) {
                   var delta = (e.target._lastPos.y) / availableHeight;
                   onChange(delta);}
