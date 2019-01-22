@@ -76,7 +76,8 @@ class App extends Component {
      this.canvasDblClick = this.canvasDblClick.bind(this);
      this.requestData = this.requestData.bind(this);
      this.editPolygon = this.editPolygon.bind(this);
-
+     this.moveImage = this.moveImage.bind(this);
+     this.imageDragBox = this.imageDragBox.bind(this);
      this.verticalScroll = this.verticalScroll.bind(this);
      this.horizontalScroll = this.horizontalScroll.bind(this);
   }
@@ -150,13 +151,14 @@ class App extends Component {
   //Canvas actions
 
   verticalScroll(delta) {
-      const y = -canvasHeight * delta * this.state.zoom/100;
+      //currenlty naively assumes image exists!
+      const y = -delta * (this.state.image.height*this.state.zoom/100 - canvasHeight)- this.state.imageOffsetY*this.state.zoom/100;
       this.setState(prevState => ({scrollY: delta, y: y}))
 
   }
 
   horizontalScroll(delta) {
-      const x = -canvasWidth * delta * this.state.zoom/100;
+      const x =  - delta * (this.state.image.width*this.state.zoom/100-canvasWidth) - this.state.imageOffsetX*this.state.zoom/100;
       this.setState(prevState => ({scrollX: delta, x: x}))
   }
 
@@ -307,7 +309,42 @@ class App extends Component {
 
   }
 
+imageDragBox (pos) {
+  //we only allow dragging if the object is larger than the canvas
+  const imageWidth = this.state.image.width;
+  const imageHeight = this.state.image.height;
+  if (this.state.zoom*imageWidth/100 > canvasWidth) {
+      pos.x = Math.floor(Math.max(Math.min(pos.x, -this.state.zoom*this.state.imageOffsetX/100), -this.state.zoom*(imageWidth+this.state.imageOffsetX)/100 + canvasWidth));
+  }
+  else {
+    pos.x = 0;
+  }
+  if (this.state.zoom*imageHeight/100 > canvasHeight) {
+    pos.y = Math.max(Math.min(pos.y, -this.state.zoom*this.state.imageOffsetY/100), -this.state.zoom*(imageHeight+this.state.imageOffsetY)/100 + canvasHeight);
+  }
+  else {
+    pos.x = 0;
+  }
+  return pos;
+}
 
+moveImage(event) {
+  //dragging the image actually should move the canvas...
+  let imageWidth
+  let imageHeight
+  if (this.state.image) {
+     imageWidth = this.state.image.width;
+     imageHeight = this.state.image.height;
+  }
+  else {
+    imageWidth = canvasWidth;
+    imageHeight = canvasHeight;
+  }
+  const newScrollX = (event.target._lastPos.x + this.state.zoom*this.state.imageOffsetX/100)/(-this.state.zoom*imageWidth/100 + canvasWidth);
+  const newScrollY = (event.target._lastPos.y +  this.state.zoom*this.state.imageOffsetY/100)/(-this.state.zoom*imageHeight/100 + canvasHeight);
+  this.setState(prevState => ({scrollX: newScrollX, scrollY: newScrollY,
+                               x: event.target._lastPos.x, y: event.target._lastPos.y}));
+}
 
 componentDidMount() {
    this.requestData();
@@ -368,21 +405,25 @@ componentDidMount() {
                    scaleY={this.state.zoom/100}
                    y={this.state.y}
                    x={this.state.x}
+                   draggable={true}
+                   dragBoundFunc={this.imageDragBox}
+                   onDragMove={this.moveImage}
                    >
 
                <Kimage
                    image={this.state.image}
                     y={this.state.imageOffsetY}
                     x={this.state.imageOffsetX}
-
-                   width={imageWidth}
-                   onMouseMove={this.canvasMouseMove}
-                   onClick={this.canvasClick}
+                    width={imageWidth}
+                    onMouseMove={this.canvasMouseMove}
+                    onClick={this.canvasClick}
                  />
+
               {lines.map(line =>
                  <Line points={line}
                        stroke={"white"}
                        strokeWidth={100/this.state.zoom}/>)}
+
                {polygons.map(line =>
                   <Polygon points={line.points}
                            pointSize={200/this.state.zoom}
