@@ -58,6 +58,16 @@ grid-row-gap: 0;
     padding-right: 0;
     margin-left: auto;
     margin-right: auto;
+}
+
+.diffImage{    
+    image-rendering: optimizeSpeed;             /* STOP SMOOTHING, GIVE ME SPEED  */
+    image-rendering: -moz-crisp-edges;          /* Firefox                        */
+    image-rendering: -o-crisp-edges;            /* Opera                          */
+    image-rendering: -webkit-optimize-contrast; /* Chrome (and eventually Safari) */
+    image-rendering: pixelated; /* Chrome */
+    image-rendering: optimize-contrast;         /* CSS3 Proposed                  */
+    -ms-interpolation-mode: nearest-neighbor;   /* IE8+                           */
 
 }
 
@@ -109,4 +119,97 @@ grid-row-gap: 0;
     grid-column-end: 2;
     grid-row-start: 2;
     grid-row-end: 2;
+}
+
+
+.range-slider {
+  position: relative;
+  width: 200px;
+  height: 80px;
+  text-align: center;
+}
+
+.maxSlider {
+    pointer-events: none;
+    position: absolute;
+    overflow: hidden;
+    left: 0;
+    top: 60px;
+    width: 200px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+}
+
+
+.maxSlider::-webkit-slider-thumb {
+    pointer-events: all;
+    position: relative;
+    z-index: 1;
+    outline: 0;
+}
+
+.maxSlider  input::-moz-range-thumb {
+    pointer-events: all;
+    position: relative;
+    z-index: 10;
+    -moz-appearance: none;
+    width: 9px;
+}
+
+.maxSlider  input::-moz-range-track {
+    position: relative;
+    z-index: -1;
+    background-color: rgba(0, 0, 0, 1);
+    border: 0;
+}
+.maxSlider  input:last-of-type::-moz-range-track {
+    -moz-appearance: none;
+    background: none transparent;
+    border: 0;
+}
+.maxSlider  input[type=range]::-moz-focus-outer {
+  border: 0;
+}
+
+.minSlider {
+    pointer-events: none;
+    position: absolute;
+    overflow: hidden;
+    left: 0;
+    top: 60px;
+    width: 200px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+}
+
+.minSlider::-webkit-slider-thumb {
+    pointer-events: all;
+    position: relative;
+    z-index: 1;
+    outline: 0;
+}
+
+.minSlider  input::-moz-range-thumb {
+    pointer-events: all;
+    position: relative;
+    z-index: 10;
+    -moz-appearance: none;
+    width: 9px;
+}
+
+.minSlider  input::-moz-range-track {
+    position: relative;
+    z-index: -1;
+    background-color: rgba(0, 0, 0, 1);
+    border: 0;
+}
+.minSlider  input:last-of-type::-moz-range-track {
+    -moz-appearance: none;
+    background: none transparent;
+    border: 0;
+}
+.minSlider  input[type=range]::-moz-focus-outer {
+  border: 0;
 }

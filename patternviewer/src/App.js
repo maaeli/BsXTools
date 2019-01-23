@@ -4,6 +4,7 @@ import classNames from 'classnames';
 import {Button} from 'react-bootstrap';
 import { Stage, Layer, Rect, Line, Group, Circle} from 'react-konva';
 import { Image as Kimage } from 'react-konva';
+import {RangeSlider} from 'reactrangeslider';
 
 import './App.css';
 
@@ -31,13 +32,16 @@ const padding = 0;
 const scrollBarWidth = 10;
 const canvasHeight = 330;
 const canvasWidth = 560;
+const minCounts = -2;
+const maxCounts = 2000;
 
 
 class App extends Component {
 
   constructor(props){
      super(props)
-
+     this.mainLayer = React.createRef();
+     this.kImage = React.createRef();
      this.state = {imageScaleX: 1,
                    imageScaleY: 1,
                    imageOffsetX: 0,
@@ -47,8 +51,7 @@ class App extends Component {
                    MaskObjects: [],
                    zoom: 100,
                    //limits for intensity display
-                   maximumInt: 1000,
-                   minimumInt: 0,
+
                    logInt: false,
                    rawData: {},
                    posX: 0,
@@ -64,9 +67,12 @@ class App extends Component {
                    imageWidth:  canvasWidth,
                    imageHeight:  canvasHeight,
                    lastClick: null,
+                   maxInt: 1000,
+                   minInt: 0,
                   };
 
      this.createImg = this.createImg.bind(this);
+     this.updateImg = this.updateImg.bind(this);
      this.transformData = this.transformData.bind(this);
 
      this.zoomSelect = this.zoomSelect.bind(this);
@@ -80,9 +86,35 @@ class App extends Component {
      this.imageDragBox = this.imageDragBox.bind(this);
      this.verticalScroll = this.verticalScroll.bind(this);
      this.horizontalScroll = this.horizontalScroll.bind(this);
+     this.minIntChanged = this.minIntChanged.bind(this);
+     this.maxIntChanged = this.maxIntChanged.bind(this);
   }
 
+ minIntChanged(event) {
+   const newMin = Math.min(event.target.value, this.state.maxInt-1);
+   this.setState(prevState => ({minInt: newMin}));
+   if (this.state.rawData && this.state.rawData.data) {
+   const newImg = this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
+   this.updateImg(newImg);
+  }
+ }
 
+ maxIntChanged(event) {
+   const newMax = Math.max(event.target.value, this.state.minInt+1);
+   this.setState(prevState => ({maxInt: newMax}));
+   if (this.state.rawData && this.state.rawData.data) {
+     const time = event.timeStamp;
+     if (this.state.lastImageUpdate) {
+       if (time - this.state.lastImage < 10000 ){
+             //We just updated, let's wait
+             return;
+           }
+     }
+     this.setState(prevState => ({lastImageUpdate: time}));
+     var newImg = this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
+    // this.updateImg(newImg);
+   }
+ }
 
   //Data relatefunctions
   requestData() {
@@ -94,7 +126,8 @@ class App extends Component {
          imageWidth: data2d.width,
          imageHeight: data2d.height,
        }));
-      const newImg = this.transformData(data2d.data, data2d.width, data2d.height);
+      var newImg = this.transformData(data2d.data, data2d.width, data2d.height);
+      console.log(data2d.data)
       this.createImg(newImg);
 
     });
@@ -104,17 +137,31 @@ class App extends Component {
 
 
   transformData(bwdata, width, height){
+    console.log("transform")
     var canvasin=this.refs.inputcanvas;
     canvasin.width = width;
     canvasin.height = height;
-    const ctx = canvasin.getContext("2d");
-    //let max = Math.max(bwdata);
+    var ctx = canvasin.getContext("2d");
+    var direct = false
+    var x = 0;
+    var y = 0;
+    if (this.state.image) {
+      direct = true;
+      ctx = this.kImage.current.getContext()._context;
+      x  = this.state.offsetX
+      y = this.state.offsetY
+      console.log(x,y);
+    }
+
+    //const ctx = canvasin.getContext("2d");
     var data = new Uint8ClampedArray(bwdata.length*4);
+
     for (let i = 0; i < bwdata.length; i += 1) {
       let intensity = bwdata[i];
-      intensity = (0 < intensity && intensity <= this.state.minimumInt) ? 0 : intensity
-      intensity = (intensity >= this.state.maximumInt) ? this.state.maximumInt : intensity
-      intensity = 255*(intensity - this.state.minimumInt)/(this.state.maximumInt - this.state.minimumInt)
+      intensity = (0 <= intensity && intensity <= this.state.minInt) ? this.state.minInt : intensity
+      //intensity = (0 <= intensity && intensity <= ) ? 0 : intensity
+      intensity = (intensity >= this.state.maxInt) ? this.state.maxInt : intensity
+      intensity = (255*(intensity - this.state.minInt)/(this.state.maxInt - this.state.minInt))
       let rgb = color(intensity,cg);
       data[4*i] = rgb[0];
       data[4*i + 1] = rgb[1];
@@ -122,14 +169,32 @@ class App extends Component {
       data[4*i + 3] = 254;
     }
     var idata = ctx.createImageData(width, height);
+
     idata.data.set(data);
-    ctx.putImageData(idata, 0, 0);
+    //console.log(idata);
+    ctx.putImageData(idata, x, y);
+    if (!direct) {
     var image=new Image();
+    image.onLoad = function(){
+         console.log("Loaded!")
+         this.createImg(image)
+     };
     image.src=canvasin.toDataURL();
+    console.log(image.height)
+    //this.createImg(image)
+    if (this.state.image) {
+      const imageS = this.state.image
+      imageS.src=canvasin.toDataURL();
+      this.setState(prevState => ({image:imageS}));
+      console.log('updated image src')
+    }
     return image;
+   }
   }
 
   createImg(img)  {
+  console.log("put image into cnavs")
+
    const scalingFactorW = (canvasWidth-scrollBarWidth)/img.width
    const scalingFactorH = (canvasHeight-scrollBarWidth)/img.height
    const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
@@ -144,6 +209,30 @@ class App extends Component {
       imageScaleY: img.height/this.state.rawData.height, //img.width is always int!
       imageOffsetX: offsetX,
       imageOffsetY: offsetY,
+     }));
+
+  }
+
+  updateImg(img)  {
+    if (this.state.img) {
+     return;
+   }
+  console.log(img.width);
+   const scalingFactorW = (canvasWidth-scrollBarWidth)/img.width
+   const scalingFactorH = (canvasHeight-scrollBarWidth)/img.height
+   const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
+   const offsetX = Math.floor(canvasWidth - img.width*scalingFactor)/2 - scrollBarWidth;
+   const offsetY = Math.max(0,((canvasHeight - img.height*scalingFactor)/2 - scrollBarWidth));
+   img.width = img.width*scalingFactor;
+   img.height = img.height*scalingFactor;
+   console.log(scalingFactor)
+
+    this.setState(prevState => ({
+      image: img,
+      imageScaleX: img.width/this.state.rawData.width, //img.width is always int!
+      imageScaleY: img.height/this.state.rawData.height, //img.width is always int!
+      //imageOffsetX: offsetX,
+      //imageOffsetY: offsetY,
      }));
 
   }
@@ -347,6 +436,13 @@ moveImage(event) {
 }
 
 componentDidMount() {
+  // important do that AFTER you added layer to a stage
+  //console.log(this.mainLayer)
+  const nativeCtx = this.mainLayer.current.getContext()._context;
+  nativeCtx.webkitImageSmoothingEnabled = false;
+  nativeCtx.mozImageSmoothingEnabled = false;
+  nativeCtx.imageSmoothingEnabled = false;
+
    this.requestData();
 }
 
@@ -384,6 +480,7 @@ componentDidMount() {
       <div className="App">
         <div className="navbar">
              <ul className="navbar-nav mr-auto">
+
               <label form="sel1">Select Zoom:</label>
               <select  ref="setzoom"
                        value = {this.state.zoom}
@@ -394,14 +491,24 @@ componentDidMount() {
                 <option>300</option>
                 <option>600</option>
                 <option>1200</option>
+                <option>6000</option>
 
               </select>
+              <div className="doubleRange">
+                Min: {this.state.minInt} Max: {this.state.maxInt}
+                <input className="minSlider" type="range" min={minCounts} max={maxCounts} step="1" value={this.state.minInt}
+                      onChange={this.minIntChanged}/>
+                <input className="maxSlider" type="range" min={minCounts} max={maxCounts} step="1" value={this.state.maxInt}
+                       onChange={this.maxIntChanged}/>
+              </div>
               </ul>
+
           </div>
           <Stage ref="canvas" className="canvascontainer"
                  width={canvasWidth} height={canvasHeight}
                  >
-            <Layer scaleX={this.state.zoom/100}
+            <Layer ref={this.mainLayer}
+                   scaleX={this.state.zoom/100}
                    scaleY={this.state.zoom/100}
                    y={this.state.y}
                    x={this.state.x}
@@ -411,7 +518,9 @@ componentDidMount() {
                    >
 
                <Kimage
-                   image={this.state.image}
+                    ref={this.kImage}
+                    className="diffImage"
+                    image={this.state.image}
                     y={this.state.imageOffsetY}
                     x={this.state.imageOffsetX}
                     width={imageWidth}
@@ -455,7 +564,7 @@ componentDidMount() {
             <Button onClick={this.addPolygonStart}> Add Polygon</Button>
           </div>
         <canvas ref="inputcanvas" width={canvasWidth} height={canvasHeight}
-                className="hidden"/>
+                className="hidden" />
       </div>
     );
   }
@@ -468,13 +577,25 @@ const Polygon = ({points,pointSize, onMouseMove, onChange}) =>
            closed={true}
            fill={'rgba(255, 255, 255, 0.3)'}
            onMouseMove={onMouseMove}/>
+     {points.map((point,index) =>
+      <Circle x={point.x} y = {point.y} radius={pointSize*2} fill={"white"}
+              opacity={0}
+              draggable={true}
+              dragBoundFunc={function (pos) {
+                  pos.x = point.x;
+                  pos.y = point.y;
+                  return pos;}}
+              onDragMove={(e) => {
+                e.cancelBubble = true;
+              }}/>)}
       {points.map((point,index) =>
        <Circle x={point.x} y = {point.y} radius={pointSize} fill={"white"}
                draggable={true}
                onDragMove={(e) => {
+                 e.cancelBubble = true
                  const newPoints = points;
-                 const newX = (e.target._lastPos.x);
-                 const newY = (e.target._lastPos.y);
+                 const newX = (e.target.attrs.x);
+                 const newY = (e.target.attrs.y);
                  newPoints[index] = {x: newX, y: newY}
                  onChange(newPoints);}}/>)}
       </Group>
