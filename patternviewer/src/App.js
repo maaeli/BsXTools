@@ -94,7 +94,7 @@ class App extends Component {
    const newMin = Math.min(event.target.value, this.state.maxInt-1);
    this.setState(prevState => ({minInt: newMin}));
    //if (this.state.rawData && this.state.rawData.data) {
-   //const newImg = this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
+   this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
   // this.updateImg(newImg);
   //}
  }
@@ -102,7 +102,7 @@ class App extends Component {
  maxIntChanged(event) {
    const newMax = Math.max(event.target.value, this.state.minInt+1);
    this.setState(prevState => ({maxInt: newMax}));
-
+   this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
  }
 
   //Data relatefunctions
@@ -115,59 +115,10 @@ class App extends Component {
          imageWidth: data2d.width,
          imageHeight: data2d.height,
        }));
-
-       var newImg = new Image;
-
-
-       //var blob = '';
-       fetch("http://0.0.0.0:8081/imagergb", { method: "GET", // *GET, POST, PUT, DELETE, etc.
-           mode: "cors", // no-cors, cors, *same-origin
-           dataType: 'blob'
-         }).then(response => {
-           console.log(response)
-           return response.blob();
-       }).then(myBlob => {
-         console.log(myBlob)
-         var objectURL = URL.createObjectURL(myBlob);
-         newImg.src = objectURL;
-         newImg.width = data2d.width;
-         newImg.height = data2d.height;
-         this.createImg(newImg)
-         console.log(newImg)
-       }).catch(function(error) {
-         console.log('There has been a problem with your fetch operation: ', error.message);
-       });
-
-       this.setState(prevState => ({image:newImg,}));
-      //var newImg = this.transformData(data2d.data, data2d.width, data2d.height);
-
-      //Image.src =
-      //console.log(data2d.data)
-      //this.createImg(newImg);
-
+     this.transformData(data2d.data,data2d.width, data2d.height)
     });
     socket.emit('data2d');
-    var newImg = new Image;
-    newImg.width =
 
-    //var blob = '';
-    fetch("http://0.0.0.0:8081/imagergb", { method: "GET", // *GET, POST, PUT, DELETE, etc.
-        mode: "cors", // no-cors, cors, *same-origin
-        dataType: 'blob'
-      }).then(response => {
-        console.log(response)
-        return response.blob();
-    }).then(myBlob => {
-      console.log(myBlob)
-      var objectURL = URL.createObjectURL(myBlob);
-      newImg.src = objectURL;
-      //event(newImg)
-      console.log(newImg)
-    }).catch(function(error) {
-      console.log('There has been a problem with your fetch operation: ', error.message);
-    });
-
-    this.setState(prevState => ({image:newImg,}));
     //  console.log(newImg)
      //}
     //newImg.src = "http://0.0.0.0:8081/imagergb/0/0.png";
@@ -179,11 +130,8 @@ class App extends Component {
 
 
   transformData(bwdata, width, height){
-    console.log("transform")
-    var canvasin=this.refs.inputcanvas;
-    canvasin.width = width;
-    canvasin.height = height;
-    var ctx = canvasin.getContext("2d");
+
+    //var ctx = canvasin.getContext("2d");
 
     const nativeCtx = this.mainLayer.current.getContext()._context;
     //const ctx = canvasin.getContext("2d");
@@ -201,22 +149,32 @@ class App extends Component {
       data[4*i + 2] = rgb[2];
       data[4*i + 3] = 254;
     }
-    var idata = ctx.createImageData(width, height);
+
     var idata2 = nativeCtx.createImageData(width, height);
-    idata.data.set(data);
+
     idata2.data.set(data);
-    //console.log(idata);
-    ctx.putImageData(idata, 0,0);
-    nativeCtx.putImageData(idata2, 0,0);
-    var image=new Image();
 
-    image.src=canvasin.toDataURL();
-    console.log(image.height)
-    //this.createImg(image)
+    const scalingFactorW = (canvasWidth-scrollBarWidth)/width
+    const scalingFactorH = (canvasHeight-scrollBarWidth)/height
+    const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
+    const offsetX = Math.floor(canvasWidth - width*scalingFactor)/2 - scrollBarWidth;
+    const offsetY = Math.max(0,((canvasHeight - height*scalingFactor)/2 - scrollBarWidth));
+    const newWidth = width*scalingFactor;
+    const newHeight = height*scalingFactor;
 
-    return image;
+    nativeCtx.putImageData(idata2,offsetX,offsetY)//, offsetX,offsetY);
+     console.log("Tset")
+     this.setState(prevState => ({
+       idata: idata2,
+       imageScaleX: newWidth/width, //img.width is always int!
+       imageScaleY: newHeight/height, //img.width is always int!
+       imageOffsetX: offsetX,
+       imageOffsetY: offsetY,
+      }));
+
 
   }
+
 
   createImg(img)  {
   console.log(img.height)
@@ -540,19 +498,11 @@ componentDidMount() {
                    draggable={true}
                    dragBoundFunc={this.imageDragBox}
                    onDragMove={this.moveImage}
+                   onMouseMove={this.canvasMouseMove}
+                   onClick={this.canvasClick}
                    >
 
-               <Kimage
 
-                    className="diffImage"
-                    image={this.state.image}
-                    y={this.state.imageOffsetY}
-                    x={this.state.imageOffsetX}
-                    width={imageWidth}
-                    onMouseMove={this.canvasMouseMove}
-                    onClick={this.canvasClick}
-
-                 />
 
 
 
