@@ -1,5 +1,6 @@
 #import gevent
 import logging
+import io
 from flask import (
     session,
     jsonify,
@@ -7,6 +8,7 @@ from flask import (
     request,
     make_response,
     copy_current_request_context,
+    send_file,
 )
 from flask_socketio import send, emit
 
@@ -19,6 +21,7 @@ import fabio
 
 from PIL import Image
 import numpy as np
+from scipy.misc import  toimage
 
 testImage = "water"
 
@@ -28,7 +31,7 @@ if testImage == "water":
 else:
     testimage = Image.open("caman.tif")
     data2D = np.array(testimage, dtype=int)
-    
+
 
 print(data2D)
 
@@ -37,7 +40,7 @@ print(data2D)
 
 #@server.route("/bsxcube/api/v0.1/get_image", methods=['GET', 'POST'])
 @socketio.on('data2d')
-def give_image():
+def give_data():
     """Provides a 1d array containing the data + width & height
     """
     print("client requested data")
@@ -49,3 +52,20 @@ def give_image():
     #The json dump with json.dumps takes about 70 ms, with ujson.dumps 65ms...
     emit('data2d', {'data': dl, 'width': width, 'height': height})
     #emit('data2d', {'data': "", 'width': width, 'height': height})
+
+@server.route('/imagergb', methods=['GET', 'POST'])
+@server.route('/imagergb/<int:min>/<int:max>.png', methods=['GET', 'POST'])
+def give_image(min=0,max=0):
+    """Provides a png
+    """
+    print("client requested image")
+    img = toimage(data2D)
+
+    return serve_pil_image(img)
+
+def serve_pil_image(pil_img):
+    print("serving image")
+    img_io = io.BytesIO()
+    pil_img.save(img_io, 'PNG')
+    img_io.seek(0)
+    return send_file(img_io,  mimetype='image/png')

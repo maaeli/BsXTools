@@ -12,12 +12,7 @@ import json
 from logging import StreamHandler, NullHandler
 from logging.handlers import TimedRotatingFileHandler
 
-#from HardwareRepository import removeLoggingHandlers
-#import queue_entry
 
-#from mxcube3 import blcontrol
-
-# Below variables used for internal application state
 
 
 # Look up table for finding the limsID for a corresponding queueID (QueueNode)

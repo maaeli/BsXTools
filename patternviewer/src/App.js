@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import {Button} from 'react-bootstrap';
-import { Stage, Layer, Rect, Line, Group, Circle} from 'react-konva';
+import { Stage, Layer, Rect, Line, Group, Circle, Context} from 'react-konva';
 import { Image as Kimage } from 'react-konva';
 import {RangeSlider} from 'reactrangeslider';
 
@@ -95,7 +95,7 @@ class App extends Component {
    this.setState(prevState => ({minInt: newMin}));
    if (this.state.rawData && this.state.rawData.data) {
    const newImg = this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
-   this.updateImg(newImg);
+  // this.updateImg(newImg);
   }
  }
 
@@ -126,13 +126,41 @@ class App extends Component {
          imageWidth: data2d.width,
          imageHeight: data2d.height,
        }));
-      var newImg = this.transformData(data2d.data, data2d.width, data2d.height);
-      console.log(data2d.data)
-      this.createImg(newImg);
+      //var newImg = this.transformData(data2d.data, data2d.width, data2d.height);
+
+      //Image.src =
+      //console.log(data2d.data)
+      //this.createImg(newImg);
 
     });
     socket.emit('data2d');
+    var newImg = new Image;
+
+    //var blob = '';
+    fetch("http://0.0.0.0:8081/imagergb", { method: "GET", // *GET, POST, PUT, DELETE, etc.
+        mode: "cors", // no-cors, cors, *same-origin
+        dataType: 'blob'
+      }).then(response => {
+        console.log(response)
+        return response.blob();
+    }).then(myBlob => {
+      console.log(myBlob)
+      var objectURL = URL.createObjectURL(myBlob);
+      newImg.src = objectURL;
+      //this.createImg(newImg)
+      console.log(newImg)
+    }).catch(function(error) {
+      console.log('There has been a problem with your fetch operation: ', error.message);
+    });
+
+      this.setState(prevState => ({image:newImg,}));
+      console.log(newImg)
+     //}
+    //newImg.src = "http://0.0.0.0:8081/imagergb/0/0.png";
   }
+
+
+
 
 
 
@@ -142,17 +170,8 @@ class App extends Component {
     canvasin.width = width;
     canvasin.height = height;
     var ctx = canvasin.getContext("2d");
-    var direct = false
-    var x = 0;
-    var y = 0;
-    if (this.state.image) {
-      direct = true;
-      ctx = this.kImage.current.getContext()._context;
-      x  = this.state.offsetX
-      y = this.state.offsetY
-      console.log(x,y);
-    }
 
+    const nativeCtx = this.mainLayer.current.getContext()._context;
     //const ctx = canvasin.getContext("2d");
     var data = new Uint8ClampedArray(bwdata.length*4);
 
@@ -169,31 +188,24 @@ class App extends Component {
       data[4*i + 3] = 254;
     }
     var idata = ctx.createImageData(width, height);
-
+    var idata2 = nativeCtx.createImageData(width, height);
     idata.data.set(data);
+    idata2.data.set(data);
     //console.log(idata);
-    ctx.putImageData(idata, x, y);
-    if (!direct) {
+    ctx.putImageData(idata, 0,0);
+    nativeCtx.putImageData(idata2, 0,0);
     var image=new Image();
-    image.onLoad = function(){
-         console.log("Loaded!")
-         this.createImg(image)
-     };
+
     image.src=canvasin.toDataURL();
     console.log(image.height)
     //this.createImg(image)
-    if (this.state.image) {
-      const imageS = this.state.image
-      imageS.src=canvasin.toDataURL();
-      this.setState(prevState => ({image:imageS}));
-      console.log('updated image src')
-    }
+
     return image;
-   }
+
   }
 
   createImg(img)  {
-  console.log("put image into cnavs")
+  console.log(img.height)
 
    const scalingFactorW = (canvasWidth-scrollBarWidth)/img.width
    const scalingFactorH = (canvasHeight-scrollBarWidth)/img.height
@@ -518,7 +530,7 @@ componentDidMount() {
                    >
 
                <Kimage
-                    ref={this.kImage}
+
                     className="diffImage"
                     image={this.state.image}
                     y={this.state.imageOffsetY}
@@ -527,6 +539,8 @@ componentDidMount() {
                     onMouseMove={this.canvasMouseMove}
                     onClick={this.canvasClick}
                  />
+
+
 
               {lines.map(line =>
                  <Line points={line}

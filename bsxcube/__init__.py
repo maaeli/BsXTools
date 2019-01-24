@@ -16,8 +16,10 @@ import gevent
 from optparse import OptionParser
 
 from flask import Flask, request
+from flask_cors import CORS
 from flask_socketio import SocketIO
 from flask_session import Session
+
 
 # To make "from HardwareRepository import ..." possible
 fname = os.path.dirname(__file__)
@@ -78,6 +80,7 @@ t0 = time.time()
 
 template_dir = os.path.join(os.path.dirname(__file__), "templates")
 server = Flask(__name__,  static_url_path='', template_folder=template_dir)
+CORS(server)
 
 server.debug = False
 server.config['SESSION_TYPE'] = "redis"
