@@ -93,27 +93,16 @@ class App extends Component {
  minIntChanged(event) {
    const newMin = Math.min(event.target.value, this.state.maxInt-1);
    this.setState(prevState => ({minInt: newMin}));
-   if (this.state.rawData && this.state.rawData.data) {
-   const newImg = this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
+   //if (this.state.rawData && this.state.rawData.data) {
+   //const newImg = this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
   // this.updateImg(newImg);
-  }
+  //}
  }
 
  maxIntChanged(event) {
    const newMax = Math.max(event.target.value, this.state.minInt+1);
    this.setState(prevState => ({maxInt: newMax}));
-   if (this.state.rawData && this.state.rawData.data) {
-     const time = event.timeStamp;
-     if (this.state.lastImageUpdate) {
-       if (time - this.state.lastImage < 10000 ){
-             //We just updated, let's wait
-             return;
-           }
-     }
-     this.setState(prevState => ({lastImageUpdate: time}));
-     var newImg = this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
-    // this.updateImg(newImg);
-   }
+
  }
 
   //Data relatefunctions
@@ -126,6 +115,30 @@ class App extends Component {
          imageWidth: data2d.width,
          imageHeight: data2d.height,
        }));
+
+       var newImg = new Image;
+
+
+       //var blob = '';
+       fetch("http://0.0.0.0:8081/imagergb", { method: "GET", // *GET, POST, PUT, DELETE, etc.
+           mode: "cors", // no-cors, cors, *same-origin
+           dataType: 'blob'
+         }).then(response => {
+           console.log(response)
+           return response.blob();
+       }).then(myBlob => {
+         console.log(myBlob)
+         var objectURL = URL.createObjectURL(myBlob);
+         newImg.src = objectURL;
+         newImg.width = data2d.width;
+         newImg.height = data2d.height;
+         this.createImg(newImg)
+         console.log(newImg)
+       }).catch(function(error) {
+         console.log('There has been a problem with your fetch operation: ', error.message);
+       });
+
+       this.setState(prevState => ({image:newImg,}));
       //var newImg = this.transformData(data2d.data, data2d.width, data2d.height);
 
       //Image.src =
@@ -135,6 +148,7 @@ class App extends Component {
     });
     socket.emit('data2d');
     var newImg = new Image;
+    newImg.width =
 
     //var blob = '';
     fetch("http://0.0.0.0:8081/imagergb", { method: "GET", // *GET, POST, PUT, DELETE, etc.
@@ -147,14 +161,14 @@ class App extends Component {
       console.log(myBlob)
       var objectURL = URL.createObjectURL(myBlob);
       newImg.src = objectURL;
-      //this.createImg(newImg)
+      //event(newImg)
       console.log(newImg)
     }).catch(function(error) {
       console.log('There has been a problem with your fetch operation: ', error.message);
     });
 
-      this.setState(prevState => ({image:newImg,}));
-      console.log(newImg)
+    this.setState(prevState => ({image:newImg,}));
+    //  console.log(newImg)
      //}
     //newImg.src = "http://0.0.0.0:8081/imagergb/0/0.png";
   }
@@ -225,11 +239,9 @@ class App extends Component {
 
   }
 
-  updateImg(img)  {
-    if (this.state.img) {
-     return;
-   }
-  console.log(img.width);
+  updateImg()  {
+   const img = this.state.image;
+   console.log(img.width);
    const scalingFactorW = (canvasWidth-scrollBarWidth)/img.width
    const scalingFactorH = (canvasHeight-scrollBarWidth)/img.height
    const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
@@ -239,13 +251,13 @@ class App extends Component {
    img.height = img.height*scalingFactor;
    console.log(scalingFactor)
 
-    this.setState(prevState => ({
-      image: img,
-      imageScaleX: img.width/this.state.rawData.width, //img.width is always int!
-      imageScaleY: img.height/this.state.rawData.height, //img.width is always int!
-      //imageOffsetX: offsetX,
-      //imageOffsetY: offsetY,
-     }));
+    // this.setState(prevState => ({
+    //   image: img,
+    //   imageScaleX: img.width/this.state.rawData.width, //img.width is always int!
+    //   imageScaleY: img.height/this.state.rawData.height, //img.width is always int!
+    //   //imageOffsetX: offsetX,
+    //   //imageOffsetY: offsetY,
+    //  }));
 
   }
 
@@ -459,6 +471,7 @@ componentDidMount() {
 }
 
 
+
   render() {
     let lines = [];
     if (this.state.objectUnderCreation.length > 1) {
@@ -538,6 +551,7 @@ componentDidMount() {
                     width={imageWidth}
                     onMouseMove={this.canvasMouseMove}
                     onClick={this.canvasClick}
+
                  />
 
 

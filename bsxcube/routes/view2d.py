@@ -11,6 +11,7 @@ from flask import (
     send_file,
 )
 from flask_socketio import send, emit
+from flask_cors import  cross_origin
 
 
 from bsxcube import socketio
@@ -53,8 +54,8 @@ def give_data():
     emit('data2d', {'data': dl, 'width': width, 'height': height})
     #emit('data2d', {'data': "", 'width': width, 'height': height})
 
-@server.route('/imagergb', methods=['GET', 'POST'])
-@server.route('/imagergb/<int:min>/<int:max>.png', methods=['GET', 'POST'])
+@server.route('/imagergb', methods=['GET'])
+@server.route('/imagergb/<int:min>/<int:max>.png', methods=['GET'])
 def give_image(min=0,max=0):
     """Provides a png
     """
@@ -62,6 +63,7 @@ def give_image(min=0,max=0):
     img = toimage(data2D)
 
     return serve_pil_image(img)
+
 
 def serve_pil_image(pil_img):
     print("serving image")

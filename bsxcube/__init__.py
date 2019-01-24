@@ -80,7 +80,8 @@ t0 = time.time()
 
 template_dir = os.path.join(os.path.dirname(__file__), "templates")
 server = Flask(__name__,  static_url_path='', template_folder=template_dir)
-CORS(server)
+CORS(server, expose_headers='Authorization')
+server.config['CORS_HEADERS'] = 'Content-Type'
 
 server.debug = False
 server.config['SESSION_TYPE'] = "redis"
