@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import {Button} from 'react-bootstrap';
-import { Stage, Layer, Rect, Line, Group, Circle, Context} from 'react-konva';
+import { Stage, Layer, Rect, Line, Group, Circle} from 'react-konva';
 import { Image as Kimage } from 'react-konva';
 import {RangeSlider} from 'reactrangeslider';
 
@@ -72,8 +72,8 @@ class App extends Component {
                   };
 
      this.createImg = this.createImg.bind(this);
-     this.updateImg = this.updateImg.bind(this);
-     this.transformData = this.transformData.bind(this);
+
+     //.transformData = this.transformData.bind(this);
 
      this.zoomSelect = this.zoomSelect.bind(this);
      this.addPolygonStart = this.addPolygonStart.bind(this);
@@ -91,18 +91,51 @@ class App extends Component {
   }
 
  minIntChanged(event) {
-   const newMin = Math.min(event.target.value, this.state.maxInt-1);
+   const newMin = Math.max(0,Math.min(event.target.value, this.state.maxInt-1));
    this.setState(prevState => ({minInt: newMin}));
-   //if (this.state.rawData && this.state.rawData.data) {
-   this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
-  // this.updateImg(newImg);
-  //}
+   if (this.state.rawData && this.state.rawData.data) {
+     const time = event.timeStamp;
+     if (this.state.lastImage) {
+       if (time - this.state.lastImage < 100 ){
+             //We just updated, let's wait
+             return;
+           }
+
+     }
+    this.setState(prevState => ({lastImage: time}));
+    console.log(time - this.state.lastImage)
+     if (this.state.image) {
+
+     const newImg = new Image();
+     newImg.onload = event =>   this.createImg(newImg);
+     newImg.src = "http://localhost:8081/imagergb/"+ String(newMin) +"/" + String(this.state.maxInt) +"/"+ new Date().getTime()+".png"
+
+     }
+   }
  }
 
  maxIntChanged(event) {
    const newMax = Math.max(event.target.value, this.state.minInt+1);
    this.setState(prevState => ({maxInt: newMax}));
-   this.transformData(this.state.rawData.data,this.state.rawData.width, this.state.rawData.height);
+   if (this.state.rawData && this.state.rawData.data) {
+     const time = event.timeStamp;
+     if (this.state.lastImage) {
+       if (time - this.state.lastImage < 100 ){
+             //We just updated, let's wait
+             return;
+           }
+
+     }
+    this.setState(prevState => ({lastImage: time}));
+    console.log(time - this.state.lastImage)
+     if (this.state.image) {
+
+     const newImg = new Image();
+     newImg.onload = event =>   this.createImg(newImg);
+     newImg.src = "http://localhost:8081/imagergb/"+ String(this.state.minInt) +"/" + String(newMax) +"/"+ new Date().getTime()+".png"
+
+     }
+   }
  }
 
   //Data relatefunctions
@@ -115,69 +148,69 @@ class App extends Component {
          imageWidth: data2d.width,
          imageHeight: data2d.height,
        }));
-     this.transformData(data2d.data,data2d.width, data2d.height)
+      //var newImg = this.transformData(data2d.data, data2d.width, data2d.height);
+      //console.log(data2d.data)
+      //this.createImg(newImg);
+
     });
     socket.emit('data2d');
-
-    //  console.log(newImg)
-     //}
-    //newImg.src = "http://0.0.0.0:8081/imagergb/0/0.png";
+    const newImg = new Image();
+    newImg.onload = event =>   this.createImg(newImg);
+    newImg.src = "http://localhost:8081/imagergb/"+ String(this.state.minInt) +"/" + String(this.state.maxInt) +"/" +new Date().getTime() +".png"
+  //  this.createImg(newImg);
   }
 
 
 
-
-
-
-  transformData(bwdata, width, height){
-
-    //var ctx = canvasin.getContext("2d");
-
-    const nativeCtx = this.mainLayer.current.getContext()._context;
-    //const ctx = canvasin.getContext("2d");
-    var data = new Uint8ClampedArray(bwdata.length*4);
-
-    for (let i = 0; i < bwdata.length; i += 1) {
-      let intensity = bwdata[i];
-      intensity = (0 <= intensity && intensity <= this.state.minInt) ? this.state.minInt : intensity
-      //intensity = (0 <= intensity && intensity <= ) ? 0 : intensity
-      intensity = (intensity >= this.state.maxInt) ? this.state.maxInt : intensity
-      intensity = (255*(intensity - this.state.minInt)/(this.state.maxInt - this.state.minInt))
-      let rgb = color(intensity,cg);
-      data[4*i] = rgb[0];
-      data[4*i + 1] = rgb[1];
-      data[4*i + 2] = rgb[2];
-      data[4*i + 3] = 254;
-    }
-
-    var idata2 = nativeCtx.createImageData(width, height);
-
-    idata2.data.set(data);
-
-    const scalingFactorW = (canvasWidth-scrollBarWidth)/width
-    const scalingFactorH = (canvasHeight-scrollBarWidth)/height
-    const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
-    const offsetX = Math.floor(canvasWidth - width*scalingFactor)/2 - scrollBarWidth;
-    const offsetY = Math.max(0,((canvasHeight - height*scalingFactor)/2 - scrollBarWidth));
-    const newWidth = width*scalingFactor;
-    const newHeight = height*scalingFactor;
-
-    nativeCtx.putImageData(idata2,offsetX,offsetY)//, offsetX,offsetY);
-     console.log("Tset")
-     this.setState(prevState => ({
-       idata: idata2,
-       imageScaleX: newWidth/width, //img.width is always int!
-       imageScaleY: newHeight/height, //img.width is always int!
-       imageOffsetX: offsetX,
-       imageOffsetY: offsetY,
-      }));
-
-
-  }
-
+  // transformData(bwdata, width, height){
+  //   console.log("transform")
+  //   var canvasin=this.refs.inputcanvas;
+  //   canvasin.width = width;
+  //   canvasin.height = height;
+  //   var ctx = canvasin.getContext("2d");
+  //   var direct = false
+  //   var x = 0;
+  //   var y = 0;
+  //
+  //
+  //   //const ctx = canvasin.getContext("2d");
+  //   var data = new Uint8ClampedArray(bwdata.length*4);
+  //
+  //   for (let i = 0; i < bwdata.length; i += 1) {
+  //     let intensity = bwdata[i];
+  //     intensity = (0 <= intensity && intensity <= this.state.minInt) ? this.state.minInt : intensity
+  //     //intensity = (0 <= intensity && intensity <= ) ? 0 : intensity
+  //     intensity = (intensity >= this.state.maxInt) ? this.state.maxInt : intensity
+  //     intensity = (255*(intensity - this.state.minInt)/(this.state.maxInt - this.state.minInt))
+  //     let rgb = color(intensity,cg);
+  //     data[4*i] = rgb[0];
+  //     data[4*i + 1] = rgb[1];
+  //     data[4*i + 2] = rgb[2];
+  //     data[4*i + 3] = 254;
+  //   }
+  //   var idata = ctx.createImageData(width, height);
+  //
+  //   idata.data.set(data);
+  //   //console.log(idata);
+  //   ctx.putImageData(idata, x, y);
+  //   if (!direct) {
+  //   var image=new Image();
+  //   image.src=canvasin.toDataURL();
+  //   console.log(image.height)
+  //   //this.createImg(image)
+  //   if (this.state.image) {
+  //     const imageS = this.state.image
+  //     //imageS.src=canvasin.toDataURL();
+  //     this.setState(prevState => ({image:imageS}));
+  //     console.log('updated image src')
+  //   }
+  //   return image;
+  //  }
+  // }
 
   createImg(img)  {
-  console.log(img.height)
+  console.log("put image into cnavs")
+
 
    const scalingFactorW = (canvasWidth-scrollBarWidth)/img.width
    const scalingFactorH = (canvasHeight-scrollBarWidth)/img.height
@@ -189,35 +222,17 @@ class App extends Component {
 
     this.setState(prevState => ({
       image: img,
+      imgSource: img.src,
       imageScaleX: img.width/this.state.rawData.width, //img.width is always int!
       imageScaleY: img.height/this.state.rawData.height, //img.width is always int!
       imageOffsetX: offsetX,
       imageOffsetY: offsetY,
      }));
-
+  if (this.state.image){
+   console.log(this.state.image.src)}
   }
 
-  updateImg()  {
-   const img = this.state.image;
-   console.log(img.width);
-   const scalingFactorW = (canvasWidth-scrollBarWidth)/img.width
-   const scalingFactorH = (canvasHeight-scrollBarWidth)/img.height
-   const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
-   const offsetX = Math.floor(canvasWidth - img.width*scalingFactor)/2 - scrollBarWidth;
-   const offsetY = Math.max(0,((canvasHeight - img.height*scalingFactor)/2 - scrollBarWidth));
-   img.width = img.width*scalingFactor;
-   img.height = img.height*scalingFactor;
-   console.log(scalingFactor)
 
-    // this.setState(prevState => ({
-    //   image: img,
-    //   imageScaleX: img.width/this.state.rawData.width, //img.width is always int!
-    //   imageScaleY: img.height/this.state.rawData.height, //img.width is always int!
-    //   //imageOffsetX: offsetX,
-    //   //imageOffsetY: offsetY,
-    //  }));
-
-  }
 
   //Canvas actions
 
@@ -337,10 +352,10 @@ class App extends Component {
   zoomSelect(event, zoom) {
     //in the functions call from the zoom selector, zoom is e.target.value and
     //as o7 07/01/2019 a string!
-    if (!this.state.image) {
-      this.setState(prevState => ({zoom: 100}));
-      return;
-    }
+    // if (!this.state.image) {
+    //   this.setState(prevState => ({zoom: 100}));
+    //   return;
+    // }
     const newZoom = parseInt(zoom);
     const currentZoom = this.state.zoom;
 
@@ -428,7 +443,15 @@ componentDidMount() {
    this.requestData();
 }
 
+componentDidUpdate(prevState) {
+  this.updateImage()
+}
 
+updateImage() {
+    const image = new window.Image();
+    image.src = this.props.image;
+    image.onload = () => this.createImg(image);
+  }
 
   render() {
     let lines = [];
@@ -451,13 +474,16 @@ componentDidMount() {
 
     let imageWidth
     let imageHeight
+    let src
     if (this.state.image) {
        imageWidth = this.state.image.width;
        imageHeight = this.state.image.height;
+       src = this.state.image.src
     }
     else {
       imageWidth = canvasWidth;
       imageHeight = canvasHeight;
+      src = ''
     }
     return (
       <div className="App">
@@ -480,9 +506,9 @@ componentDidMount() {
               <div className="doubleRange">
                 Min: {this.state.minInt} Max: {this.state.maxInt}
                 <input className="minSlider" type="range" min={minCounts} max={maxCounts} step="1" value={this.state.minInt}
-                      onChange={this.minIntChanged}/>
+                      onInput={this.minIntChanged}/>
                 <input className="maxSlider" type="range" min={minCounts} max={maxCounts} step="1" value={this.state.maxInt}
-                       onChange={this.maxIntChanged}/>
+                       onInput={this.maxIntChanged}/>
               </div>
               </ul>
 
@@ -498,13 +524,19 @@ componentDidMount() {
                    draggable={true}
                    dragBoundFunc={this.imageDragBox}
                    onDragMove={this.moveImage}
-                   onMouseMove={this.canvasMouseMove}
-                   onClick={this.canvasClick}
                    >
 
-
-
-
+               <Kimage
+                    ref={this.kImage}
+                    //className="diffImage"
+                    image={this.state.image}
+                    key={src}
+                    y={this.state.imageOffsetY}
+                    x={this.state.imageOffsetX}
+                    width={imageWidth}
+                    onMouseMove={this.canvasMouseMove}
+                    onClick={this.canvasClick}
+                 />
 
               {lines.map(line =>
                  <Line points={line}
