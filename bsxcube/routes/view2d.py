@@ -1,6 +1,7 @@
-#import gevent
+
 import logging
 import io
+import time
 from flask import (
     session,
     jsonify,
@@ -9,6 +10,7 @@ from flask import (
     make_response,
     copy_current_request_context,
     send_file,
+    g,
 )
 from flask_socketio import send, emit
 from flask_cors import  cross_origin
@@ -85,3 +87,13 @@ def serve_pil_image(pil_img):
     pil_img.save(img_io, 'PNG')
     img_io.seek(0)
     return send_file(img_io,  mimetype='image/png')
+
+#This does give a number (0.22s for the image serving) but also throws errors...
+# @server.before_request
+# def before_request():
+#     g.start = time.time()
+#
+# @server.after_request
+# def after_request(response):
+#     diff = time.time() - g.start
+#     print("Request took ", diff)

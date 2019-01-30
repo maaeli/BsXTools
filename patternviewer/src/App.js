@@ -1,10 +1,9 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import classNames from 'classnames';
+//import classNames from 'classnames';
 import {Button} from 'react-bootstrap';
 import { Stage, Layer, Rect, Line, Group, Circle} from 'react-konva';
 import { Image as Kimage } from 'react-konva';
-import {RangeSlider} from 'reactrangeslider';
 
 import './App.css';
 
@@ -12,20 +11,6 @@ import io from 'socket.io-client';
 const socket = io.connect("http://0.0.0.0:8081");
 
 
-
-/*This section is to be extended to allow a section of colormaps
-Also, negative values need to be handled depending on the chosen map*/
-var colormap = require('colormap')
-const colormapoptions = {
-       colormap: "jet",   // pick a builtin colormap or add your own
-       nshades: 255 ,      // how many divisions
-       format: "rgb",     // "hex" or "rgb" or "rgbaString"
-       alpha: 1  ,        // set an alpha value or a linear alpha mapping [start, end]
-}
-const cg = colormap(colormapoptions);
-const color = (bw,cg) => (bw < 0)
-    ? [0,0,0]
-    : cg[Math.floor((colormapoptions.nshades-1)*bw/255)]
 
 
 const padding = 0;
@@ -35,13 +20,29 @@ const canvasWidth = 560;
 const minCounts = -2;
 const maxCounts = 2000;
 
+const beamGeometry = {
+  detectorDistance: 2.87,
+  wavelength: 0.99e-10,
+  pixelSize: 172e-6,
+  beamX: 888,
+  beamY: 93,
+  detectorX: 981,
+  detectorY: 1043
+}
+
+const resUnits = "nm-1" //Alternatives Ang, nm, Ang-1
+
+//a function that takes the geometry and calculates suitable resolution rings
+const resolutionRadii = (unit,beamGeometry) => {
+
+}
 
 class App extends Component {
 
   constructor(props){
      super(props)
      this.mainLayer = React.createRef();
-     this.kImage = React.createRef();
+     //this.kImage = React.createRef();
      this.state = {imageScaleX: 1,
                    imageScaleY: 1,
                    imageOffsetX: 0,
@@ -103,7 +104,6 @@ class App extends Component {
 
      }
     this.setState(prevState => ({lastImage: time}));
-    console.log(time - this.state.lastImage)
      if (this.state.image) {
 
      const newImg = new Image();
@@ -118,40 +118,36 @@ class App extends Component {
    const newMax = Math.max(event.target.value, this.state.minInt+1);
    this.setState(prevState => ({maxInt: newMax}));
    if (this.state.rawData && this.state.rawData.data) {
-     const time = event.timeStamp;
-     if (this.state.lastImage) {
-       if (time - this.state.lastImage < 100 ){
-             //We just updated, let's wait
-             return;
-           }
-
-     }
-    this.setState(prevState => ({lastImage: time}));
-    console.log(time - this.state.lastImage)
      if (this.state.image) {
-
-     const newImg = new Image();
-     newImg.onload = event =>   this.createImg(newImg);
+     if (this.state.imageBeingLoaded) {
+       var newImg = this.state.imageBeingLoaded;
+     }
+     else {
+       var newImg = new Image();
+     }
+     newImg.onload = () =>  {
+       this.createImg(newImg);
+       this.setState(prevState => ({
+          imageBeingLoaded: null,
+        }));
+     }
      newImg.src = "http://localhost:8081/imagergb/"+ String(this.state.minInt) +"/" + String(newMax) +"/"+ new Date().getTime()+".png"
-
+     this.setState(prevState => ({
+        imageBeingLoaded: newImg,
+      }));
      }
    }
  }
 
   //Data relatefunctions
   requestData() {
-    console.log("request data")
     socket.on('data2d', (data2d) => {
-
+      console.log("got data")
       this.setState(prevState => ({
          rawData: {data: data2d.data, width: data2d.width, height: data2d.height},
          imageWidth: data2d.width,
          imageHeight: data2d.height,
        }));
-      //var newImg = this.transformData(data2d.data, data2d.width, data2d.height);
-      //console.log(data2d.data)
-      //this.createImg(newImg);
-
     });
     socket.emit('data2d');
     const newImg = new Image();
@@ -162,56 +158,9 @@ class App extends Component {
 
 
 
-  // transformData(bwdata, width, height){
-  //   console.log("transform")
-  //   var canvasin=this.refs.inputcanvas;
-  //   canvasin.width = width;
-  //   canvasin.height = height;
-  //   var ctx = canvasin.getContext("2d");
-  //   var direct = false
-  //   var x = 0;
-  //   var y = 0;
-  //
-  //
-  //   //const ctx = canvasin.getContext("2d");
-  //   var data = new Uint8ClampedArray(bwdata.length*4);
-  //
-  //   for (let i = 0; i < bwdata.length; i += 1) {
-  //     let intensity = bwdata[i];
-  //     intensity = (0 <= intensity && intensity <= this.state.minInt) ? this.state.minInt : intensity
-  //     //intensity = (0 <= intensity && intensity <= ) ? 0 : intensity
-  //     intensity = (intensity >= this.state.maxInt) ? this.state.maxInt : intensity
-  //     intensity = (255*(intensity - this.state.minInt)/(this.state.maxInt - this.state.minInt))
-  //     let rgb = color(intensity,cg);
-  //     data[4*i] = rgb[0];
-  //     data[4*i + 1] = rgb[1];
-  //     data[4*i + 2] = rgb[2];
-  //     data[4*i + 3] = 254;
-  //   }
-  //   var idata = ctx.createImageData(width, height);
-  //
-  //   idata.data.set(data);
-  //   //console.log(idata);
-  //   ctx.putImageData(idata, x, y);
-  //   if (!direct) {
-  //   var image=new Image();
-  //   image.src=canvasin.toDataURL();
-  //   console.log(image.height)
-  //   //this.createImg(image)
-  //   if (this.state.image) {
-  //     const imageS = this.state.image
-  //     //imageS.src=canvasin.toDataURL();
-  //     this.setState(prevState => ({image:imageS}));
-  //     console.log('updated image src')
-  //   }
-  //   return image;
-  //  }
-  // }
-
   createImg(img)  {
-  console.log("put image into cnavs")
-
-
+   const originalWidth = img.width
+   const originalHeight = img.height
    const scalingFactorW = (canvasWidth-scrollBarWidth)/img.width
    const scalingFactorH = (canvasHeight-scrollBarWidth)/img.height
    const scalingFactor = Math.min(scalingFactorW,scalingFactorH)
@@ -220,16 +169,15 @@ class App extends Component {
    img.width = img.width*scalingFactor;
    img.height = img.height*scalingFactor;
 
+
     this.setState(prevState => ({
       image: img,
       imgSource: img.src,
-      imageScaleX: img.width/this.state.rawData.width, //img.width is always int!
-      imageScaleY: img.height/this.state.rawData.height, //img.width is always int!
+      imageScaleX: img.width/originalWidth, //img.width is always int!
+      imageScaleY: img.height/originalHeight, //img.width is always int!
       imageOffsetX: offsetX,
       imageOffsetY: offsetY,
      }));
-  if (this.state.image){
-   console.log(this.state.image.src)}
   }
 
 
@@ -261,6 +209,7 @@ class App extends Component {
 
       try {
         //1,1 -> 0!
+        console.log(this.state.imageScaleX)
        int1D = this.state.rawData.data[Math.floor(realY-1)*this.state.rawData.width+ Math.floor(realX-1)];
       }
       catch (err) {
@@ -293,7 +242,6 @@ class App extends Component {
          this.setState(prevState => ({
             objectUnderCreation: [...prevState.objectUnderCreation, newPoint]
           }));
-          //console.log(this.state.objectUnderCreation);
 
          break;
        default:
@@ -433,8 +381,8 @@ moveImage(event) {
 }
 
 componentDidMount() {
-  // important do that AFTER you added layer to a stage
-  //console.log(this.mainLayer)
+  // turn of smoothing
+
   const nativeCtx = this.mainLayer.current.getContext()._context;
   nativeCtx.webkitImageSmoothingEnabled = false;
   nativeCtx.mozImageSmoothingEnabled = false;
@@ -443,9 +391,7 @@ componentDidMount() {
    this.requestData();
 }
 
-componentDidUpdate(prevState) {
-  this.updateImage()
-}
+
 
 updateImage() {
     const image = new window.Image();
@@ -638,6 +584,21 @@ const HorizontalScrollBar = ({width,objectWidth, x,y, scrollX, barHeight, onChan
       </Layer>
 
 
+HorizontalScrollBar.defaultProps = {
+        barWidth: 10,
+        scrollX: 0.5,
+      };
+
+HorizontalScrollBar.propTypes = {
+        width: PropTypes.number.isRequired,
+        objectWidth: PropTypes.number.isRequired,
+        x: PropTypes.number.isRequired,
+        y: PropTypes.number.isRequired,
+        scrollX: PropTypes.number,
+        barWidth:  PropTypes.number,
+        onChange: PropTypes.func.isRequired,
+      };
+
 
 const VerticalScrollBar = ({height,objectHeight, x,y,scrollY, barWidth, onChange}) =>
       <Layer x={0} y={0}>
@@ -665,7 +626,20 @@ const VerticalScrollBar = ({height,objectHeight, x,y,scrollY, barWidth, onChange
             }
       </Layer>
 
+      VerticalScrollBar.defaultProps = {
+        barWidth: 10,
+        scrollY: 0.5,
+      };
 
+      VerticalScrollBar.propTypes = {
+        height: PropTypes.number.isRequired,
+        objectHeight: PropTypes.number.isRequired,
+        x: PropTypes.number.isRequired,
+        y: PropTypes.number.isRequired,
+        scrollY: PropTypes.number,
+        barWidth:  PropTypes.number,
+        onChange: PropTypes.func.isRequired,
+      };
 
 
 export default App;
