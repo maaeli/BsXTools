@@ -24,8 +24,10 @@ import fabio
 
 from PIL import Image
 import numpy as np
-from scipy.misc import  toimage
+#from scipy.misc import  toimage
 
+from silx.gui.colors import Colormap
+colormap1 = Colormap("temperature")
 
 testImage = "water"
 
@@ -36,9 +38,9 @@ else:
     testimage = Image.open("caman.tif")
     data2D = np.array(testimage, dtype=int)
 
-import matplotlib.cm as cm
+#import matplotlib.cm as cm
 
-cmap = cm.get_cmap('jet')
+#cmap = cm.get_cmap('jet')
 
 print(data2D)
 
@@ -62,22 +64,15 @@ def give_data():
 
 @server.route('/', methods=['GET', 'POST'])
 @server.route('/imagergb', methods=['GET', 'POST'])
-@server.route('/imagergb/<int:min>/<int:max>.png', methods=['GET', 'POST'])
-@server.route('/imagergb/<int:min>/<int:max>/<int:timestamp>.png', methods=['GET', 'POST'])
-def give_image(min=0,max=1000, timestamp=0):
+@server.route('/imagergb/<int:minimum>/<int:maximum>.png', methods=['GET', 'POST'])
+@server.route('/imagergb/<int:minimum>/<int:maximum>/<int:timestamp>.png', methods=['GET', 'POST'])
+def give_image(minimum=0,maximum=1000, timestamp=0):
     """Provides a png
     """
     print("client requested image")
-    with fabio.open("water_001_00001.edf") as testimage:
-        data2D = testimage.data
-    print(min,max)
-
-    data2D[(data2D>max)] = max
-    data2D[(data2D>0)*(data2D < min)] = min
-    data2D = (data2D - min)/(max - min)
-    im = cmap(data2D)
-    img = toimage(np.uint8(im * 255))
-
+    colormap1.setVRange(minimum,maximum)
+    im = colormap1.applyToData(data2D)
+    img = Image.fromarray(np.uint8(im))
     return serve_pil_image(img)
 
 

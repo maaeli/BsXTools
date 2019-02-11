@@ -24,18 +24,53 @@ const beamGeometry = {
   detectorDistance: 2.87,
   wavelength: 0.99e-10,
   pixelSize: 172e-6,
-  beamX: 888,
-  beamY: 93,
+  beamX: 884,
+  beamY: 92,
   detectorX: 981,
   detectorY: 1043
 }
 
-const resUnits = "nm-1" //Alternatives Ang, nm, Ang-1
+const resUnits = "nm-1"; //Alternatives Ang, nm, Ang-1
 
-//a function that takes the geometry and calculates suitable resolution rings
+//a function that takes the geometry and calculates suitable resolution rings in detectorPixels
 const resolutionRadii = (unit,beamGeometry) => {
+  const rings = []
+  const maxDistInPix = Math.sqrt(Math.max((beamGeometry.detectorX-beamGeometry.beamX)**2 + (beamGeometry.detectorY-beamGeometry.beamY)**2,
+                          beamGeometry.beamX**2 + (beamGeometry.detectorY-beamGeometry.beamY)**2,
+                          (beamGeometry.detectorX-beamGeometry.beamX)**2 + beamGeometry.beamY**2,
+                          beamGeometry.beamX**2 + beamGeometry.beamY**2));
 
-}
+  const minDistInPix = 10;
+  const thetaMin = 0.5*Math.atan(beamGeometry.pixelSize*minDistInPix/beamGeometry.detectorDistance)
+  const thetaMax = 0.5*Math.atan(beamGeometry.pixelSize*maxDistInPix/beamGeometry.detectorDistance)
+  switch(unit) {
+     case "nm-1": //SAXS start at beamCenter, work outward, step 0.1 nm-1
+      const dq = q => {
+        if (q < 0.1) return 0.01;
+        else if (q < 1)  return 0.1;
+        else return 0.5;
+      }
+      const qmin = 4*3.14/beamGeometry.wavelength*Math.sin(thetaMin)*1e-9;
+      const qmax = 4*3.14/beamGeometry.wavelength*Math.sin(thetaMax)*1e-9;
+
+      const start = Math.ceil(qmin*1e2)*1e-2
+      for (let q =start; q<qmax; q+= dq(q)){
+
+        q = q.toFixed(3)*1.0 //floating point fix
+        const theta = Math.asin(q*1e9*beamGeometry.wavelength/(4*3.14))
+        const pix = Math.tan(theta*2)*beamGeometry.detectorDistance/beamGeometry.pixelSize
+        rings.push({q: q, radius: Math.round(pix)});
+      }
+      //console.log(rings)
+      break;
+     case "Ang":
+      break;
+    }
+    return rings;
+  }
+
+const resRings = resolutionRadii(resUnits, beamGeometry)
+
 
 class App extends Component {
 
@@ -51,8 +86,7 @@ class App extends Component {
                    objectUnderCreation: [],
                    MaskObjects: [],
                    zoom: 100,
-                   //limits for intensity display
-
+                   showRings: false,
                    logInt: false,
                    rawData: {},
                    posX: 0,
@@ -89,6 +123,7 @@ class App extends Component {
      this.horizontalScroll = this.horizontalScroll.bind(this);
      this.minIntChanged = this.minIntChanged.bind(this);
      this.maxIntChanged = this.maxIntChanged.bind(this);
+     this.ringShowChanged = this.ringShowChanged.bind(this);
   }
 
  minIntChanged(event) {
@@ -139,10 +174,16 @@ class App extends Component {
    }
  }
 
+ ringShowChanged(event) {
+   const ringShow = event.target.checked;
+   this.setState(prevState => ({
+      showRings: ringShow,
+    }));
+ }
+
   //Data relatefunctions
   requestData() {
     socket.on('data2d', (data2d) => {
-      console.log("got data")
       this.setState(prevState => ({
          rawData: {data: data2d.data, width: data2d.width, height: data2d.height},
          imageWidth: data2d.width,
@@ -168,7 +209,9 @@ class App extends Component {
    const offsetY = Math.max(0,((canvasHeight - img.height*scalingFactor)/2 - scrollBarWidth));
    img.width = img.width*scalingFactor;
    img.height = img.height*scalingFactor;
-
+   const beamX = beamGeometry.beamX*img.width/originalWidth + offsetX
+   const beamY = beamGeometry.beamY*img.height/originalHeight + offsetY
+   const resolutionRings = resRings.map(ring => ({q: ring.q, radius: ring.radius*scalingFactor}))
 
     this.setState(prevState => ({
       image: img,
@@ -177,6 +220,8 @@ class App extends Component {
       imageScaleY: img.height/originalHeight, //img.width is always int!
       imageOffsetX: offsetX,
       imageOffsetY: offsetY,
+      beamCenter: {x: beamX, y: beamY},
+      ResolultionCircles: resolutionRings,
      }));
   }
 
@@ -209,7 +254,6 @@ class App extends Component {
 
       try {
         //1,1 -> 0!
-        console.log(this.state.imageScaleX)
        int1D = this.state.rawData.data[Math.floor(realY-1)*this.state.rawData.width+ Math.floor(realX-1)];
       }
       catch (err) {
@@ -393,11 +437,11 @@ componentDidMount() {
 
 
 
-updateImage() {
-    const image = new window.Image();
-    image.src = this.props.image;
-    image.onload = () => this.createImg(image);
-  }
+// updateImage() {
+//     const image = new window.Image();
+//     image.src = this.props.image;
+//     image.onload = () => this.createImg(image);
+//   }
 
   render() {
     let lines = [];
@@ -449,6 +493,11 @@ updateImage() {
                 <option>6000</option>
 
               </select>
+              <span>
+                <input type="checkbox" checked={this.state.showRings} onChange={this.ringShowChanged}/>
+                <label form="resRings">Resolution Rings</label>
+                {this.state.showRings}
+              </span>
               <div className="doubleRange">
                 Min: {this.state.minInt} Max: {this.state.maxInt}
                 <input className="minSlider" type="range" min={minCounts} max={maxCounts} step="1" value={this.state.minInt}
@@ -494,6 +543,15 @@ updateImage() {
                            pointSize={200/this.state.zoom}
                            onMouseMove={this.canvasMouseMove}
                            onChange={points => this.editPolygon(points,line.id)}/>)}
+                {this.state.ResolultionCircles && this.state.showRings &&
+                  <ResolultionCircles center={this.state.beamCenter}
+                                      radii={this.state.ResolultionCircles}
+                                      clipX = {this.state.imageOffsetX}
+                                      clipY = {this.state.imageOffsetY}
+                                      clipWidth = {this.state.image.width*this.state.zoom/100}
+                                      clipHeight = {this.state.image.width*this.state.zoom/100}
+                                      onMouseMove={this.canvasMouseMove}
+                                      onClick={this.canvasClick}/>}
               </Layer>
 
 
@@ -526,6 +584,16 @@ updateImage() {
   }
 }
 
+const ResolultionCircles = ({center,radii, clipX, clipY, clipWidth, clipHeight, onMouseMove,onClick}) =>
+  <Group clipX={clipX} clipY={clipY} clipWidth={clipWidth} clipHeight={clipHeight}>
+    {radii.map((q) =>
+      <Circle x={center.x} y = {center.y} radius={q.radius} stroke={"white"}
+            strokeWidth = {0.1}
+            draggable={false}
+            onMouseMove={onMouseMove}
+            onClick={onClick}
+            />)}
+  </Group>
 
 const Polygon = ({points,pointSize, onMouseMove, onChange}) =>
      <Group>
